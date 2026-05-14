@@ -1,64 +1,116 @@
-const User    = require('../models/User');
+const User = require('../models/User');
 const Artwork = require('../models/Artwork');
-const jwt     = require('jsonwebtoken');
-const bcrypt  = require('bcryptjs');
-const crypto  = require('crypto');
-const fs      = require('fs');
-const path    = require('path');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const validator = require('validator');
 
 
 const generateToken = (userId) => {
   return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
+const isValidPassword = (password) => {
+  const minLength = 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+  return password.length >= minLength && hasUppercase && hasLowercase && hasNumber && hasSpecial;
+};
+
 const signup = async (req, res) => {
   try {
-    const { fullName, email, password, role } = req.body;
+    // 1. Destructure and Sanitize Inputs (Convert to strings to prevent NoSQL injection objects)
+    let { fullName, email, password, role } = req.body;
 
+    fullName = fullName ? String(fullName).trim() : '';
+    email = email ? String(email).trim().toLowerCase() : '';
+    password = password ? String(password) : '';
+    role = role ? String(role) : 'buyer';
+
+    // 2. Strict Input Validation
     if (!fullName || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide full name, email and password',
+        message: 'Please provide full name, email, and password',
       });
     }
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
+    // STRICT NAME CHECK: Letters, spaces, hyphens only.
+    const nameRegex = /^[a-zA-Z][a-zA-Z\s'-]{2,49}$/;
+    if (!nameRegex.test(fullName)) {
       return res.status(400).json({
+        success: false,
+        message: 'Full name must contain valid alphabetic characters and be between 3 and 50 characters long.',
+      });
+    }
+
+    // STRICT EMAIL CHECK
+    const localPart = email.split('@')[0];
+    if (!validator.isEmail(email) || /^\d+$/.test(localPart)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid, non-numeric email format.',
+      });
+    }
+
+    if (!isValidPassword(password)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be 8+ characters and include uppercase, lowercase, numbers, and special characters.',
+      });
+    }
+    if (!['buyer', 'artist'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role provided',
+      });
+    }
+
+    // 3. Check for existing user
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({ // 409 Conflict is better for duplicates than 400
         success: false,
         message: 'An account with this email already exists',
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // 4. Hash password
+    const hashedPassword = await bcrypt.hash(password, 12); // 12 rounds is excellent for modern security
 
+    // 5. Create user
     const user = new User({
       fullName,
-      email:    email.toLowerCase(),
+      email,
       password: hashedPassword,
-      role:     role || 'buyer',
+      role,
     });
 
     await user.save();
     const token = generateToken(user._id);
 
+    // 6. Return sanitized user object
     return res.status(201).json({
       success: true,
       message: 'Account created successfully',
       token,
       user: {
-        id:       user._id,
+        id: user._id,
         fullName: user.fullName,
-        email:    user.email,
-        role:     user.role,
-        avatar:   user.avatar,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
       },
     });
   } catch (error) {
-    console.error('Signup error:', error.message);
+    console.error('Signup error:', error); // Log the full error to the server, not just error.message
     return res.status(500).json({
       success: false,
-      message: 'Server error: ' + error.message,
+      message: 'An unexpected error occurred during signup. Please try again later.', // Don't expose database errors to the client
     });
   }
 };
@@ -97,11 +149,11 @@ const login = async (req, res) => {
       message: 'Login successful',
       token,
       user: {
-        id:       user._id,
+        id: user._id,
         fullName: user.fullName,
-        email:    user.email,
-        role:     user.role,
-        avatar:   user.avatar,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
       },
     });
   } catch (error) {
@@ -132,15 +184,15 @@ const forgotPassword = async (req, res) => {
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    user.resetPasswordToken   = crypto.createHash('sha256').update(resetToken).digest('hex');
+    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     user.resetPasswordExpires = Date.now() + 60 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
     return res.status(200).json({
-      success:   true,
-      message:   'Reset token generated',
+      success: true,
+      message: 'Reset token generated',
       resetToken,
-      resetUrl:  `${process.env.CLIENT_URL}/reset-password?token=${resetToken}&email=${email}`,
+      resetUrl: `${process.env.CLIENT_URL}/reset-password?token=${resetToken}&email=${email}`,
     });
   } catch (error) {
     console.error('Forgot password error:', error.message);
@@ -170,8 +222,8 @@ const resetPassword = async (req, res) => {
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const user = await User.findOne({
-      email:                email.toLowerCase(),
-      resetPasswordToken:   hashedToken,
+      email: email.toLowerCase(),
+      resetPasswordToken: hashedToken,
       resetPasswordExpires: { $gt: Date.now() },
     });
 
@@ -182,8 +234,8 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    user.password             = await bcrypt.hash(newPassword, 12);
-    user.resetPasswordToken   = undefined;
+    user.password = await bcrypt.hash(newPassword, 12);
+    user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
 
@@ -229,17 +281,17 @@ const updateProfile = async (req, res) => {
     }
 
     const updateData = {
-      fullName:           fullName.trim(),
-      phone:              phone        || '',
-      city:               city         || '',
-      country:            country      || 'Pakistan',
-      bio:                bio          || '',
-      specialty:          specialty    || '',
-      experience:         experience   || '',
-      instagram:          instagram    || '',
-      website:            website      || '',
-      storeName:          storeName    || '',
-      storeTagline:       storeTagline || '',
+      fullName: fullName.trim(),
+      phone: phone || '',
+      city: city || '',
+      country: country || 'Pakistan',
+      bio: bio || '',
+      specialty: specialty || '',
+      experience: experience || '',
+      instagram: instagram || '',
+      website: website || '',
+      storeName: storeName || '',
+      storeTagline: storeTagline || '',
       acceptCustomOrders: acceptCustomOrders === 'false' ? false : true,
     };
 
@@ -301,7 +353,7 @@ const changePassword = async (req, res) => {
       });
     }
 
-    const user    = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id);
     const isMatch = await bcrypt.compare(currentPassword, user.password);
 
     if (!isMatch) {
@@ -338,7 +390,7 @@ const deleteAccount = async (req, res) => {
       });
     }
 
-    const user    = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id);
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
@@ -385,7 +437,7 @@ const toggleWishlist = async (req, res) => {
     if (!artworkId) {
       return res.status(400).json({ success: false, message: 'Artwork ID required' });
     }
-    const user  = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id);
     const index = user.wishlist.findIndex(id => id.toString() === artworkId.toString());
     if (index === -1) {
       user.wishlist.push(artworkId);
@@ -394,8 +446,8 @@ const toggleWishlist = async (req, res) => {
     }
     await user.save();
     return res.status(200).json({
-      success:      true,
-      wishlist:     user.wishlist,
+      success: true,
+      wishlist: user.wishlist,
       isWishlisted: index === -1,
     });
   } catch (error) {
@@ -407,11 +459,11 @@ const toggleWishlist = async (req, res) => {
 const getWishlist = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate({
-      path:     'wishlist',
+      path: 'wishlist',
       populate: { path: 'artist', select: 'fullName avatar city specialty' },
     });
     return res.status(200).json({
-      success:  true,
+      success: true,
       wishlist: user.wishlist || [],
     });
   } catch (error) {
