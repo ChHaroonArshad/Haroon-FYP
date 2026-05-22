@@ -88,7 +88,7 @@ export default function TermsAndConditions() {
       <Navbar />
 
       <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-purple-900 pt-12 pb-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
+        <div className="w-full max-w-7xl mx-auto text-center">
           <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <FileText size={30} className="text-white" />
           </div>
@@ -101,7 +101,7 @@ export default function TermsAndConditions() {
       </div>
 
       <main className="flex-1 py-16 px-4">
-        <div className="max-w-4xl mx-auto">
+        <div className="w-full max-w-7xl mx-auto">
 
           <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 mb-10">
             <p className="text-gray-700 leading-relaxed text-sm md:text-base">

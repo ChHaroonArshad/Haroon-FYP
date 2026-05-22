@@ -60,7 +60,7 @@ const ArtistProfileView = () => {
             <div className="absolute inset-0 bg-gradient-to-t from-black/40" />
           </div>
 
-          <div className="max-w-5xl mx-auto px-4 md:px-6">
+          <div className="w-full max-w-7xl mx-auto px-4 md:px-6">
             {/* Profile header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 -mt-14 mb-5">
               <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-4xl font-black text-white border-4 border-white shadow-xl flex-shrink-0">

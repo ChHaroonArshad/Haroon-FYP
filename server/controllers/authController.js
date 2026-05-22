@@ -63,7 +63,7 @@ const signup = async (req, res) => {
         message: 'Password must be 8+ characters and include uppercase, lowercase, numbers, and special characters.',
       });
     }
-    if (!['buyer', 'artist'].includes(role)) {
+    if (!['buyer', 'artist', 'admin'].includes(role)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid role provided',
@@ -88,6 +88,7 @@ const signup = async (req, res) => {
       email,
       password: hashedPassword,
       role,
+      avatar: req.file ? `/uploads/${req.file.filename}` : '', // <-- ADD THIS LINE
     });
 
     await user.save();

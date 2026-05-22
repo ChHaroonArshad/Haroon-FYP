@@ -99,7 +99,7 @@ const UploadArtwork = () => {
           subtitle="Share your creation with the world"
         />
 
-        <main className="p-4 md:p-6 max-w-4xl mx-auto">
+        <main className="p-4 md:p-6 w-full max-w-7xl mx-auto">
 
           {/* Message */}
           {message.text && (

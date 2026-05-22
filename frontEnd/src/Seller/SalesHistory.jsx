@@ -135,7 +135,7 @@ export default function SalesHistory() {
           subtitle={`${sales.length} total transactions`}
         />
 
-        <main className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
+        <main className="p-4 md:p-6 space-y-5 w-full max-w-7xl mx-auto">
 
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

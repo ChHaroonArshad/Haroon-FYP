@@ -102,7 +102,7 @@ const SuccessPage = () => {
       </nav>
 
       {/* Success Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
         {/* Success Animation */}
         <div className="text-center mb-8 sm:mb-12">
           <div className="inline-block relative mb-6 sm:mb-8">

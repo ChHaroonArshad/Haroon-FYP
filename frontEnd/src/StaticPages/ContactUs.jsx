@@ -34,7 +34,7 @@ export default function ContactUs() {
       <Navbar />
 
       <div className="bg-gradient-to-br from-purple-800 via-purple-700 to-blue-700 pt-12 pb-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
+        <div className="w-full max-w-7xl mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-4">Contact Us</h1>
           <p className="text-white/80 text-base md:text-xl">We're here to help. Reach out to us any time.</p>
         </div>

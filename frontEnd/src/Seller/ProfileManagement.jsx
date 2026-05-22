@@ -380,7 +380,7 @@ const ProfileManagement = () => {
           subtitle="Manage your artist profile"
         />
 
-        <main className="p-4 md:p-6 space-y-5 max-w-4xl mx-auto">
+        <main className="p-4 md:p-6 space-y-5 w-full max-w-7xl mx-auto">
 
           {/* Hero */}
           <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 rounded-2xl p-6 text-white">

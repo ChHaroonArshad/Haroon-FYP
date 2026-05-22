@@ -33,7 +33,7 @@ export default function RefundPolicy() {
       <Navbar />
 
       <div className="bg-gradient-to-br from-green-700 via-emerald-700 to-teal-700 pt-12 pb-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
+        <div className="w-full max-w-7xl mx-auto text-center">
           <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <RefreshCw size={30} className="text-white" />
           </div>
@@ -46,7 +46,7 @@ export default function RefundPolicy() {
       </div>
 
       <main className="flex-1 py-16 px-4">
-        <div className="max-w-4xl mx-auto space-y-12">
+        <div className="w-full max-w-7xl mx-auto space-y-12">
 
           <div className="bg-green-50 border border-green-100 rounded-2xl p-6">
             <p className="text-gray-700 leading-relaxed text-sm md:text-base">

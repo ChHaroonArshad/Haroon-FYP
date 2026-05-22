@@ -128,7 +128,7 @@ export default function EarningsAnalytics() {
           subtitle="Your real financial performance"
         />
 
-        <main className="p-4 md:p-6 space-y-5 max-w-6xl mx-auto">
+        <main className="p-4 md:p-6 space-y-5 w-full max-w-7xl mx-auto">
 
           {/* Stat Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

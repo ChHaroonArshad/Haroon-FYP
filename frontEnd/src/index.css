@@ -1,31 +1,30 @@
 @import "tailwindcss";
 
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-body {
+/* Global Font Override */
+html,
+body,
+#root {
+  font-family: "Inter", sans-serif;
   margin: 0;
   padding: 0;
-  min-width: 320px;
   min-height: 100vh;
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  background-color: #f9fafb; /* Matches your gray-50 background */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+/* Optional: Make scrollbars look professional (Webkit browsers) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
-a:hover {
-  color: #535bf2;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
-
-button {
-  cursor: pointer;
-  font-family: inherit;
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }

@@ -5,26 +5,26 @@ import {
   Clock, DollarSign, Ruler, Plus,
   CheckCircle, XCircle, Package, Palette
 } from 'lucide-react';
-import BuyerSidebar        from './BuyerSidebar';
-import BuyerHeader         from './BuyerHeader';
+import BuyerSidebar from './BuyerSidebar';
+import BuyerHeader from './BuyerHeader';
 import { customRequestAPI } from '../services/api';
-import { getImageUrl }      from '../hooks/useUser';
+import { getImageUrl } from '../hooks/useUser';
 
 const OPTIONS = {
-  categories: ['Landscape','Abstract','Portrait','Traditional','Modern','Calligraphy','Still Life'],
-  styles:     ['Realistic','Impressionistic','Abstract','Minimalist','Expressionist','Surrealist'],
-  mediums:    ['Oil on Canvas','Acrylic','Watercolor','Mixed Media','Digital Art','Charcoal','Ink'],
-  sizes:      ['8x10 inches','12x16 inches','16x20 inches','24x36 inches','30x40 inches','Custom'],
-  colors:     [['Warm tones','🔴'],['Cool tones','🔵'],['Earth tones','🟤'],['Pastels','🌸'],['Monochrome','⚫'],['Vibrant','🌈']],
-  budgets:    ['PKR 10,000–20,000','PKR 20,000–40,000','PKR 40,000–70,000','PKR 70,000+'],
-  deadlines:  ['1 week','2 weeks','1 month','2 months','Flexible'],
+  categories: ['Landscape', 'Abstract', 'Portrait', 'Traditional', 'Modern', 'Calligraphy', 'Still Life'],
+  styles: ['Realistic', 'Impressionistic', 'Abstract', 'Minimalist', 'Expressionist', 'Surrealist'],
+  mediums: ['Oil on Canvas', 'Acrylic', 'Watercolor', 'Mixed Media', 'Digital Art', 'Charcoal', 'Ink'],
+  sizes: ['8x10 inches', '12x16 inches', '16x20 inches', '24x36 inches', '30x40 inches', 'Custom'],
+  colors: [['Warm tones', '🔴'], ['Cool tones', '🔵'], ['Earth tones', '🟤'], ['Pastels', '🌸'], ['Monochrome', '⚫'], ['Vibrant', '🌈']],
+  budgets: ['PKR 10,000–20,000', 'PKR 20,000–40,000', 'PKR 40,000–70,000', 'PKR 70,000+'],
+  deadlines: ['1 week', '2 weeks', '1 month', '2 months', 'Flexible'],
 };
 
 const STEPS = [
-  { n: 1, label: 'Choose Artist'  },
-  { n: 2, label: 'Art Details'    },
+  { n: 1, label: 'Choose Artist' },
+  { n: 2, label: 'Art Details' },
   { n: 3, label: 'Specifications' },
-  { n: 4, label: 'Review & Send'  },
+  { n: 4, label: 'Review & Send' },
 ];
 
 const GRADIENTS = [
@@ -37,28 +37,28 @@ const GRADIENTS = [
 ];
 
 const STATUS_CONFIG = {
-  pending:  { bg: 'bg-amber-100',  text: 'text-amber-700',  icon: Clock,       label: 'Pending'  },
-  accepted: { bg: 'bg-green-100',  text: 'text-green-700',  icon: CheckCircle, label: 'Accepted' },
-  declined: { bg: 'bg-red-100',    text: 'text-red-600',    icon: XCircle,     label: 'Declined' },
+  pending: { bg: 'bg-amber-100', text: 'text-amber-700', icon: Clock, label: 'Pending' },
+  accepted: { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle, label: 'Accepted' },
+  declined: { bg: 'bg-red-100', text: 'text-red-600', icon: XCircle, label: 'Declined' },
 };
 
 export default function CustomRequestForm() {
   const navigate = useNavigate();
 
-  const [sidebarOpen,    setSidebarOpen]    = useState(false);
-  const [activeTab,      setActiveTab]      = useState('new');   // 'new' | 'my'
-  const [step,           setStep]           = useState(1);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('new');   // 'new' | 'my'
+  const [step, setStep] = useState(1);
   const [selectedArtist, setSelectedArtist] = useState(null);
-  const [submitted,      setSubmitted]      = useState(false);
-  const [submitting,     setSubmitting]     = useState(false);
-  const [submitError,    setSubmitError]    = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
-  const [artists,        setArtists]        = useState([]);
+  const [artists, setArtists] = useState([]);
   const [loadingArtists, setLoadingArtists] = useState(true);
-  const [artistsError,   setArtistsError]   = useState('');
+  const [artistsError, setArtistsError] = useState('');
 
-  const [myRequests,     setMyRequests]     = useState([]);
-  const [loadingMy,      setLoadingMy]      = useState(false);
+  const [myRequests, setMyRequests] = useState([]);
+  const [loadingMy, setLoadingMy] = useState(false);
 
   const [form, setForm] = useState({
     title: '', category: '', style: '', medium: '',
@@ -100,7 +100,7 @@ export default function CustomRequestForm() {
     fetchMy();
   }, [activeTab]);
 
-  const sel    = (key, val) => setForm(f => ({ ...f, [key]: val }));
+  const sel = (key, val) => setForm(f => ({ ...f, [key]: val }));
   const toggle = (key, val) => setForm(f => ({
     ...f,
     [key]: f[key].includes(val)
@@ -117,18 +117,18 @@ export default function CustomRequestForm() {
     setSubmitError('');
     try {
       await customRequestAPI.create({
-        sellerId:    selectedArtist._id,
-        title:       form.title,
-        category:    form.category,
-        style:       form.style,
-        medium:      form.medium,
-        size:        form.size === 'Custom'
+        sellerId: selectedArtist._id,
+        title: form.title,
+        category: form.category,
+        style: form.style,
+        medium: form.medium,
+        size: form.size === 'Custom'
           ? `${form.customW}×${form.customH} inches`
           : form.size,
-        budget:      form.budget,
-        deadline:    form.deadline,
+        budget: form.budget,
+        deadline: form.deadline,
         description: form.description,
-        colors:      form.colors,
+        colors: form.colors,
       });
       setSubmitted(true);
     } catch (err) {
@@ -147,11 +147,10 @@ export default function CustomRequestForm() {
     <button
       type="button"
       onClick={() => onClick(value)}
-      className={`px-3 py-2 rounded-xl text-sm font-semibold border-2 transition ${
-        current === value
+      className={`px-3 py-2 rounded-xl text-sm font-semibold border-2 transition ${current === value
           ? 'border-purple-600 bg-purple-600 text-white shadow-md shadow-purple-200'
           : 'border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 bg-white'
-      }`}
+        }`}
     >
       {value}
     </button>
@@ -180,7 +179,7 @@ export default function CustomRequestForm() {
                 setSubmitted(false);
                 setStep(1);
                 setSelectedArtist(null);
-                setForm({ title:'',category:'',style:'',medium:'',size:'',customW:'',customH:'',colors:[],budget:'',deadline:'',description:'' });
+                setForm({ title: '', category: '', style: '', medium: '', size: '', customW: '', customH: '', colors: [], budget: '', deadline: '', description: '' });
                 setActiveTab('my');
               }}
               className="px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition shadow-lg shadow-purple-200"
@@ -209,27 +208,26 @@ export default function CustomRequestForm() {
           subtitle="Commission your perfect artwork"
         />
 
-        <main className="p-4 md:p-6 max-w-2xl mx-auto">
+        {/* --- FIXED WRAPPER HERE --- */}
+        <main className="p-4 md:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-6">
 
           {/* Tab Toggle */}
           <div className="flex gap-2 mb-5 bg-white border border-gray-200 p-1 rounded-xl shadow-sm">
             <button
               onClick={() => setActiveTab('new')}
-              className={`flex-1 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${
-                activeTab === 'new'
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${activeTab === 'new'
                   ? 'bg-purple-600 text-white shadow-sm'
                   : 'text-gray-600 hover:bg-gray-50'
-              }`}
+                }`}
             >
               <Plus className="w-4 h-4" /> New Request
             </button>
             <button
               onClick={() => setActiveTab('my')}
-              className={`flex-1 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${
-                activeTab === 'my'
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${activeTab === 'my'
                   ? 'bg-purple-600 text-white shadow-sm'
                   : 'text-gray-600 hover:bg-gray-50'
-              }`}
+                }`}
             >
               <Package className="w-4 h-4" />
               My Requests
@@ -248,9 +246,9 @@ export default function CustomRequestForm() {
               {/* Summary stats */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: 'Total Sent', value: myRequests.length,                                      color: 'text-purple-600', bg: 'bg-purple-50', iconBg: 'bg-purple-500', icon: Package      },
-                  { label: 'Accepted',   value: myRequests.filter(r => r.status === 'accepted').length, color: 'text-green-600',  bg: 'bg-green-50',  iconBg: 'bg-green-500',  icon: CheckCircle  },
-                  { label: 'Pending',    value: myRequests.filter(r => r.status === 'pending').length,  color: 'text-amber-600',  bg: 'bg-amber-50',  iconBg: 'bg-amber-500',  icon: Clock        },
+                  { label: 'Total Sent', value: myRequests.length, color: 'text-purple-600', bg: 'bg-purple-50', iconBg: 'bg-purple-500', icon: Package },
+                  { label: 'Accepted', value: myRequests.filter(r => r.status === 'accepted').length, color: 'text-green-600', bg: 'bg-green-50', iconBg: 'bg-green-500', icon: CheckCircle },
+                  { label: 'Pending', value: myRequests.filter(r => r.status === 'pending').length, color: 'text-amber-600', bg: 'bg-amber-50', iconBg: 'bg-amber-500', icon: Clock },
                 ].map(s => (
                   <div key={s.label} className={`${s.bg} rounded-2xl border border-white shadow-sm p-4 flex items-center gap-3`}>
                     <div className={`w-9 h-9 ${s.iconBg} rounded-xl flex items-center justify-center flex-shrink-0`}>
@@ -284,20 +282,18 @@ export default function CustomRequestForm() {
                 </div>
               ) : (
                 myRequests.map(req => {
-                  const cfg  = STATUS_CONFIG[req.status] || STATUS_CONFIG.pending;
+                  const cfg = STATUS_CONFIG[req.status] || STATUS_CONFIG.pending;
                   const Icon = cfg.icon;
                   return (
-                    <div key={req._id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${
-                      req.status === 'accepted' ? 'border-green-200' :
-                      req.status === 'declined' ? 'border-red-200' :
-                      'border-amber-100'
-                    }`}>
-                      {/* Status bar */}
-                      <div className={`px-5 py-2.5 border-b flex items-center justify-between ${
-                        req.status === 'accepted' ? 'bg-green-50 border-green-100' :
-                        req.status === 'declined' ? 'bg-red-50 border-red-100' :
-                        'bg-amber-50 border-amber-100'
+                    <div key={req._id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${req.status === 'accepted' ? 'border-green-200' :
+                        req.status === 'declined' ? 'border-red-200' :
+                          'border-amber-100'
                       }`}>
+                      {/* Status bar */}
+                      <div className={`px-5 py-2.5 border-b flex items-center justify-between ${req.status === 'accepted' ? 'bg-green-50 border-green-100' :
+                          req.status === 'declined' ? 'bg-red-50 border-red-100' :
+                            'bg-amber-50 border-amber-100'
+                        }`}>
                         <div className="flex items-center gap-2">
                           <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold ${cfg.bg} ${cfg.text}`}>
                             <Icon className="w-3 h-3" /> {cfg.label}
@@ -324,10 +320,10 @@ export default function CustomRequestForm() {
                         {/* Specs */}
                         <div className="grid grid-cols-2 gap-2 mb-3">
                           {[
-                            ['Budget',   req.budget   || '—'],
+                            ['Budget', req.budget || '—'],
                             ['Deadline', req.deadline || '—'],
-                            ['Size',     req.size     || '—'],
-                            ['Medium',   req.medium   || '—'],
+                            ['Size', req.size || '—'],
+                            ['Medium', req.medium || '—'],
                           ].map(([k, v]) => (
                             <div key={k} className="bg-gray-50 rounded-xl p-2.5 border border-gray-100">
                               <p className="text-xs text-gray-400 mb-0.5">{k}</p>
@@ -391,16 +387,14 @@ export default function CustomRequestForm() {
                 {STEPS.map((s, i) => (
                   <React.Fragment key={s.n}>
                     <div className="flex items-center gap-1.5">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 transition-all ${
-                        s.n < step  ? 'bg-green-500 text-white shadow-md shadow-green-200'
-                        : s.n === step ? 'bg-purple-600 text-white shadow-lg shadow-purple-200'
-                        : 'bg-gray-200 text-gray-500'
-                      }`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 transition-all ${s.n < step ? 'bg-green-500 text-white shadow-md shadow-green-200'
+                          : s.n === step ? 'bg-purple-600 text-white shadow-lg shadow-purple-200'
+                            : 'bg-gray-200 text-gray-500'
+                        }`}>
                         {s.n < step ? <Check className="w-4 h-4" /> : s.n}
                       </div>
-                      <span className={`text-xs font-bold hidden sm:block ${
-                        s.n === step ? 'text-purple-600' : s.n < step ? 'text-green-600' : 'text-gray-400'
-                      }`}>
+                      <span className={`text-xs font-bold hidden sm:block ${s.n === step ? 'text-purple-600' : s.n < step ? 'text-green-600' : 'text-gray-400'
+                        }`}>
                         {s.label}
                       </span>
                     </div>
@@ -442,11 +436,10 @@ export default function CustomRequestForm() {
                             key={artist._id}
                             type="button"
                             onClick={() => setSelectedArtist(artist)}
-                            className={`p-4 rounded-2xl border-2 text-left transition relative ${
-                              selectedArtist?._id === artist._id
+                            className={`p-4 rounded-2xl border-2 text-left transition relative ${selectedArtist?._id === artist._id
                                 ? 'border-purple-600 bg-purple-50 shadow-md shadow-purple-100'
                                 : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                            }`}
+                              }`}
                           >
                             {selectedArtist?._id === artist._id && (
                               <div className="absolute top-3 right-3 w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center">
@@ -564,11 +557,10 @@ export default function CustomRequestForm() {
                       <div className="flex flex-wrap gap-2">
                         {OPTIONS.colors.map(([c, icon]) => (
                           <button key={c} type="button" onClick={() => toggle('colors', c)}
-                            className={`px-3 py-2 rounded-xl text-sm font-semibold border-2 transition ${
-                              form.colors.includes(c)
+                            className={`px-3 py-2 rounded-xl text-sm font-semibold border-2 transition ${form.colors.includes(c)
                                 ? 'border-purple-600 bg-purple-600 text-white shadow-md shadow-purple-200'
                                 : 'border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 bg-white'
-                            }`}>
+                              }`}>
                             {icon} {c}
                           </button>
                         ))}
@@ -638,14 +630,14 @@ export default function CustomRequestForm() {
 
                     <div className="grid grid-cols-2 gap-2">
                       {[
-                        ['Title',    form.title    || '—'],
+                        ['Title', form.title || '—'],
                         ['Category', form.category || '—'],
-                        ['Style',    form.style    || '—'],
-                        ['Medium',   form.medium   || '—'],
-                        ['Size',     form.size === 'Custom' ? `${form.customW}×${form.customH} in` : form.size || '—'],
-                        ['Budget',   form.budget   || '—'],
+                        ['Style', form.style || '—'],
+                        ['Medium', form.medium || '—'],
+                        ['Size', form.size === 'Custom' ? `${form.customW}×${form.customH} in` : form.size || '—'],
+                        ['Budget', form.budget || '—'],
                         ['Deadline', form.deadline || '—'],
-                        ['Colors',   form.colors.join(', ') || '—'],
+                        ['Colors', form.colors.join(', ') || '—'],
                       ].map(([k, v]) => (
                         <div key={k} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
                           <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">{k}</p>

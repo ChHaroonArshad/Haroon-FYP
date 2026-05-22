@@ -113,7 +113,7 @@ const ArtworkDetail = () => {
           subtitle={artwork.title}
         />
 
-        <main className="p-4 md:p-6 max-w-6xl mx-auto">
+        <main className="p-4 md:p-6 w-full max-w-7xl mx-auto">
 
           {/* Back */}
           <button

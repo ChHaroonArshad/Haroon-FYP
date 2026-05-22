@@ -4,24 +4,24 @@ import {
   Bell, Check, X, Loader, AlertCircle,
   ShoppingBag, MessageCircle, Star, Package, Clock
 } from 'lucide-react';
-import BuyerSidebar      from './BuyerSidebar';
-import BuyerHeader       from './BuyerHeader';
+import BuyerSidebar from './BuyerSidebar';
+import BuyerHeader from './BuyerHeader';
 import { notificationAPI } from '../services/api';
 
 const TYPE_CONFIG = {
-  order:   { icon: ShoppingBag,   color: 'bg-purple-100 text-purple-600' },
-  message: { icon: MessageCircle, color: 'bg-blue-100 text-blue-600'    },
-  review:  { icon: Star,          color: 'bg-yellow-100 text-yellow-600' },
-  payment: { icon: Package,       color: 'bg-green-100 text-green-600'  },
+  order: { icon: ShoppingBag, color: 'bg-purple-100 text-purple-600' },
+  message: { icon: MessageCircle, color: 'bg-blue-100 text-blue-600' },
+  review: { icon: Star, color: 'bg-yellow-100 text-yellow-600' },
+  payment: { icon: Package, color: 'bg-green-100 text-green-600' },
 };
 
 const NotificationsCenter = () => {
-  const [sidebarOpen,     setSidebarOpen]     = useState(false);
-  const [notifications,   setNotifications]   = useState([]);
-  const [loading,         setLoading]         = useState(true);
-  const [error,           setError]           = useState('');
-  const [filter,          setFilter]          = useState('all');
-  const [deletingId,      setDeletingId]      = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [deletingId, setDeletingId] = useState(null);
 
   const fetchNotifications = async () => {
     setLoading(true);
@@ -46,14 +46,14 @@ const NotificationsCenter = () => {
       setNotifications(prev =>
         prev.map(n => n._id === id ? { ...n, read: true } : n)
       );
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const handleMarkAllRead = async () => {
     try {
       await notificationAPI.markAllRead();
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const handleDelete = async (id) => {
@@ -61,7 +61,7 @@ const NotificationsCenter = () => {
     try {
       await notificationAPI.delete(id);
       setNotifications(prev => prev.filter(n => n._id !== id));
-    } catch (err) {}
+    } catch (err) { }
     finally { setDeletingId(null); }
   };
 
@@ -69,14 +69,14 @@ const NotificationsCenter = () => {
     try {
       await notificationAPI.deleteAll();
       setNotifications([]);
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const formatTime = (dateStr) => {
     const date = new Date(dateStr);
     const diff = Date.now() - date.getTime();
-    if (diff < 60000)    return 'Just now';
-    if (diff < 3600000)  return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 60000) return 'Just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
     return date.toLocaleDateString('en-PK', { day: 'numeric', month: 'short' });
   };
@@ -88,10 +88,10 @@ const NotificationsCenter = () => {
   const unread = notifications.filter(n => !n.read).length;
 
   const filters = [
-    { id: 'all',     label: 'All'      },
-    { id: 'order',   label: 'Orders'   },
+    { id: 'all', label: 'All' },
+    { id: 'order', label: 'Orders' },
     { id: 'message', label: 'Messages' },
-    { id: 'review',  label: 'Reviews'  },
+    { id: 'review', label: 'Reviews' },
     { id: 'payment', label: 'Payments' },
   ];
 
@@ -106,7 +106,8 @@ const NotificationsCenter = () => {
           subtitle={unread > 0 ? `${unread} unread` : 'All caught up!'}
         />
 
-        <main className="p-4 md:p-6 max-w-2xl mx-auto space-y-4">
+        {/* --- FIXED WRAPPER HERE --- */}
+        <main className="p-4 md:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-4">
 
           {/* Toolbar */}
           <div className="flex items-center justify-between flex-wrap gap-3">
@@ -115,11 +116,10 @@ const NotificationsCenter = () => {
                 <button
                   key={f.id}
                   onClick={() => setFilter(f.id)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                    filter === f.id
-                      ? 'bg-purple-600 text-white shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filter === f.id
+                    ? 'bg-purple-600 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                    }`}
                 >
                   {f.label}
                 </button>
@@ -170,16 +170,15 @@ const NotificationsCenter = () => {
           ) : (
             <div className="space-y-2">
               {filtered.map(notif => {
-                const cfg  = TYPE_CONFIG[notif.type] || TYPE_CONFIG.order;
+                const cfg = TYPE_CONFIG[notif.type] || TYPE_CONFIG.order;
                 const Icon = cfg.icon;
                 return (
                   <div
                     key={notif._id}
-                    className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${
-                      !notif.read
-                        ? 'border-purple-100 border-l-4 border-l-purple-500'
-                        : 'border-gray-100'
-                    }`}
+                    className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${!notif.read
+                      ? 'border-purple-100 border-l-4 border-l-purple-500'
+                      : 'border-gray-100'
+                      }`}
                   >
                     <div className="flex items-start gap-3 p-4">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${cfg.color}`}>

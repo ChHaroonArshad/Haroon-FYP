@@ -305,7 +305,7 @@ const ProfileSettings = () => {
           subtitle="Manage your profile"
         />
 
-        <main className="p-4 md:p-6 space-y-5 max-w-4xl mx-auto">
+        <main className="p-4 md:p-6 space-y-5 w-full max-w-7xl mx-auto">
 
           {/* Hero */}
           <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-blue-600 rounded-2xl p-6 text-white">

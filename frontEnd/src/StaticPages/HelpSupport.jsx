@@ -98,7 +98,7 @@ export default function HelpSupport() {
       <Navbar />
 
       <div className="bg-gradient-to-br from-purple-800 via-purple-700 to-blue-700 pt-12 pb-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
+        <div className="w-full max-w-7xl mx-auto text-center">
           <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <HelpCircle size={30} className="text-white" />
           </div>
@@ -117,7 +117,7 @@ export default function HelpSupport() {
       </div>
 
       <main className="flex-1 py-12 px-4">
-        <div className="max-w-4xl mx-auto">
+        <div className="w-full max-w-7xl mx-auto">
 
           {search.trim() ? (
             <div className="mb-10">

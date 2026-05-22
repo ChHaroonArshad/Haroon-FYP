@@ -4,24 +4,24 @@ import {
   ShoppingBag, Package, Truck, CheckCircle,
   Clock, XCircle, Loader, AlertCircle, Star
 } from 'lucide-react';
-import BuyerSidebar  from './BuyerSidebar';
-import BuyerHeader   from './BuyerHeader';
+import BuyerSidebar from './BuyerSidebar';
+import BuyerHeader from './BuyerHeader';
 import { orderAPI, reviewAPI } from '../services/api';
 import { getImageUrl } from '../hooks/useUser';
 
 const STATUS_CONFIG = {
-  pending:      { bg: 'bg-amber-100',  text: 'text-amber-700',  icon: Clock,       label: 'Pending'    },
-  confirmed:    { bg: 'bg-blue-100',   text: 'text-blue-700',   icon: CheckCircle, label: 'Confirmed'  },
-  'in-transit': { bg: 'bg-purple-100', text: 'text-purple-700', icon: Truck,       label: 'In Transit' },
-  delivered:    { bg: 'bg-green-100',  text: 'text-green-700',  icon: CheckCircle, label: 'Delivered'  },
-  cancelled:    { bg: 'bg-red-100',    text: 'text-red-700',    icon: XCircle,     label: 'Cancelled'  },
+  pending: { bg: 'bg-amber-100', text: 'text-amber-700', icon: Clock, label: 'Pending' },
+  confirmed: { bg: 'bg-blue-100', text: 'text-blue-700', icon: CheckCircle, label: 'Confirmed' },
+  'in-transit': { bg: 'bg-purple-100', text: 'text-purple-700', icon: Truck, label: 'In Transit' },
+  delivered: { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle, label: 'Delivered' },
+  cancelled: { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle, label: 'Cancelled' },
 };
 
 const PAYMENT_LABELS = {
-  cod:       'Cash on Delivery',
+  cod: 'Cash on Delivery',
   easypaisa: 'Easypaisa',
-  jazzcash:  'JazzCash',
-  bank:      'Bank Transfer',
+  jazzcash: 'JazzCash',
+  bank: 'Bank Transfer',
 };
 
 const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
@@ -30,21 +30,21 @@ const MyOrders = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [sidebarOpen,  setSidebarOpen]  = useState(false);
-  const [orders,       setOrders]       = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState('');
-  const [searchQuery,  setSearchQuery]  = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [successMsg,   setSuccessMsg]   = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   // Review modal state
   const [reviewModal, setReviewModal] = useState(null);
-  const [rating,      setRating]      = useState(5);
-  const [comment,     setComment]     = useState('');
-  const [submitting,  setSubmitting]  = useState(false);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState('');
-  const [reviewed,    setReviewed]    = useState({});
+  const [reviewed, setReviewed] = useState({});
 
   useEffect(() => {
     if (location.state?.orderPlaced) {
@@ -114,18 +114,18 @@ const MyOrders = () => {
     const matchStatus = filterStatus === 'all' || o.status === filterStatus;
     const matchSearch =
       (o.artworkTitle || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (o.orderNumber  || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (o.sellerName   || '').toLowerCase().includes(searchQuery.toLowerCase());
+      (o.orderNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (o.sellerName || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchStatus && matchSearch;
   });
 
   const statusFilters = [
-    { id: 'all',         label: 'All',        count: orders.length },
-    { id: 'pending',     label: 'Pending',    count: orders.filter(o => o.status === 'pending').length     },
-    { id: 'confirmed',   label: 'Confirmed',  count: orders.filter(o => o.status === 'confirmed').length   },
-    { id: 'in-transit',  label: 'In Transit', count: orders.filter(o => o.status === 'in-transit').length  },
-    { id: 'delivered',   label: 'Delivered',  count: orders.filter(o => o.status === 'delivered').length   },
-    { id: 'cancelled',   label: 'Cancelled',  count: orders.filter(o => o.status === 'cancelled').length   },
+    { id: 'all', label: 'All', count: orders.length },
+    { id: 'pending', label: 'Pending', count: orders.filter(o => o.status === 'pending').length },
+    { id: 'confirmed', label: 'Confirmed', count: orders.filter(o => o.status === 'confirmed').length },
+    { id: 'in-transit', label: 'In Transit', count: orders.filter(o => o.status === 'in-transit').length },
+    { id: 'delivered', label: 'Delivered', count: orders.filter(o => o.status === 'delivered').length },
+    { id: 'cancelled', label: 'Cancelled', count: orders.filter(o => o.status === 'cancelled').length },
   ];
 
   return (
@@ -142,7 +142,7 @@ const MyOrders = () => {
           onSearchChange={e => setSearchQuery(e.target.value)}
         />
 
-        <main className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
+        <main className="p-4 md:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-6">
 
           {/* Success Banner */}
           {successMsg && (
@@ -155,10 +155,10 @@ const MyOrders = () => {
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: 'Total Orders', value: orders.length,                                        color: 'text-purple-600' },
-              { label: 'Pending',      value: orders.filter(o => o.status === 'pending').length,    color: 'text-amber-600'  },
-              { label: 'In Transit',   value: orders.filter(o => o.status === 'in-transit').length, color: 'text-blue-600'   },
-              { label: 'Delivered',    value: orders.filter(o => o.status === 'delivered').length,  color: 'text-green-600'  },
+              { label: 'Total Orders', value: orders.length, color: 'text-purple-600' },
+              { label: 'Pending', value: orders.filter(o => o.status === 'pending').length, color: 'text-amber-600' },
+              { label: 'In Transit', value: orders.filter(o => o.status === 'in-transit').length, color: 'text-blue-600' },
+              { label: 'Delivered', value: orders.filter(o => o.status === 'delivered').length, color: 'text-green-600' },
             ].map((s, i) => (
               <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
                 <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
@@ -173,11 +173,10 @@ const MyOrders = () => {
               <button
                 key={f.id}
                 onClick={() => setFilterStatus(f.id)}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                  filterStatus === f.id
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filterStatus === f.id
                     ? 'bg-purple-600 text-white shadow-sm'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 {f.label}
                 {f.count > 0 && (
@@ -229,8 +228,8 @@ const MyOrders = () => {
           ) : (
             <div className="space-y-4">
               {filtered.map(order => {
-                const cfg         = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
-                const Icon        = cfg.icon;
+                const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+                const Icon = cfg.icon;
                 const isCancelled = order.status === 'cancelled';
                 const isDelivered = order.status === 'delivered';
                 const alreadyReviewed = reviewed[order._id];
@@ -249,11 +248,10 @@ const MyOrders = () => {
                         <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold ${cfg.bg} ${cfg.text}`}>
                           <Icon className="w-3 h-3" /> {cfg.label}
                         </span>
-                        <span className={`px-2 py-0.5 rounded-lg text-xs font-semibold ${
-                          order.paymentStatus === 'paid'
+                        <span className={`px-2 py-0.5 rounded-lg text-xs font-semibold ${order.paymentStatus === 'paid'
                             ? 'bg-green-100 text-green-700'
                             : 'bg-gray-100 text-gray-600'
-                        }`}>
+                          }`}>
                           {order.paymentStatus === 'paid' ? '✓ Paid' : 'Unpaid'}
                         </span>
                       </div>
@@ -386,11 +384,10 @@ const MyOrders = () => {
                     onClick={() => setRating(s)}
                     className="transition hover:scale-125"
                   >
-                    <Star className={`w-9 h-9 transition-colors ${
-                      s <= rating
+                    <Star className={`w-9 h-9 transition-colors ${s <= rating
                         ? 'fill-yellow-400 text-yellow-400'
                         : 'text-gray-200 hover:text-yellow-300'
-                    }`} />
+                      }`} />
                   </button>
                 ))}
               </div>

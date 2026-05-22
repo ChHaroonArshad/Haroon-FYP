@@ -193,7 +193,7 @@ const OrderTracking = () => {
           subtitle={order.orderNumber || order._id}
         />
 
-        <main className="p-4 md:p-6 max-w-6xl mx-auto space-y-5">
+        <main className="p-4 md:p-6 w-full max-w-7xl mx-auto space-y-5">
 
           {/* Back */}
           <button
