@@ -3,8 +3,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ShoppingBag, Palette, Tag,
   CreditCard, DollarSign, TrendingUp, BarChart3, Flag,
-  Settings, Home, LogOut, ChevronDown, ChevronRight, X, Shield
+  Settings, Home, LogOut, ChevronDown,MessageSquare , ChevronRight, X, Shield
 } from 'lucide-react';
+import {  Calendar } from 'lucide-react';
+
+
 
 const navItems = [
   { icon: Home, label: 'Home', path: '/admin' },
@@ -20,6 +23,11 @@ const navItems = [
   { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
   { icon: Flag, label: 'Reports', path: '/admin/reports' },
   { icon: Settings, label: 'Settings', path: '/admin/settings' },
+{ icon: ShoppingBag, label: 'Art Store',  path: '/admin/store'  },
+{ icon: ShoppingBag, label: 'Store Orders', path: '/admin/store-orders' },
+{ icon: Calendar,   label: 'Events & News', path: '/admin/events' },
+{ icon: MessageSquare, label: 'Support Chat', path : '/admin/chat' },
+
 ];
 
 export default function AdminSidebar({ open, onClose }) {

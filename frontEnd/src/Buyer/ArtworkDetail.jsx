@@ -5,23 +5,23 @@ import {
   CheckCircle, Package, Shield, Truck, Eye,
   MessageCircle, MapPin, Loader, AlertCircle
 } from 'lucide-react';
-import BuyerSidebar  from './BuyerSidebar';
-import BuyerHeader   from './BuyerHeader';
+import BuyerSidebar from './BuyerSidebar';
+import BuyerHeader from './BuyerHeader';
 import { artworkAPI, messageAPI, reviewAPI } from '../services/api';
 import { getImageUrl } from '../hooks/useUser';
 
 const ArtworkDetail = () => {
-  const { id }   = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isFavorite,  setIsFavorite]  = useState(false);
-  const [artwork,     setArtwork]     = useState(null);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState('');
-  const [related,     setRelated]     = useState([]);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [artwork, setArtwork] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [related, setRelated] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
-  const [reviews,     setReviews]     = useState([]);
+  const [reviews, setReviews] = useState([]);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -53,7 +53,7 @@ const ArtworkDetail = () => {
     setChatLoading(true);
     try {
       const sellerId = artwork.artist?._id || artwork.artist;
-      const data     = await messageAPI.getOrCreateConversation(sellerId.toString());
+      const data = await messageAPI.getOrCreateConversation(sellerId.toString());
       navigate('/buyer/messages', { state: { conversationId: data.conversation._id } });
     } catch (err) {
       navigate('/buyer/messages');
@@ -68,7 +68,7 @@ const ArtworkDetail = () => {
   // ── Loading ──────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex">
-      <BuyerSidebar open={false} onClose={() => {}} />
+      <BuyerSidebar open={false} onClose={() => { }} />
       <div className="flex-1 lg:ml-64 flex items-center justify-center">
         <div className="text-center">
           <Loader className="w-12 h-12 text-purple-600 animate-spin mx-auto mb-3" />
@@ -81,7 +81,7 @@ const ArtworkDetail = () => {
   // ── Error ────────────────────────────────────────────────
   if (error || !artwork) return (
     <div className="min-h-screen bg-gray-50 flex">
-      <BuyerSidebar open={false} onClose={() => {}} />
+      <BuyerSidebar open={false} onClose={() => { }} />
       <div className="flex-1 lg:ml-64 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
@@ -113,7 +113,7 @@ const ArtworkDetail = () => {
           subtitle={artwork.title}
         />
 
-        <main className="p-4 md:p-6 w-full max-w-7xl mx-auto">
+        <main className="p-4 md:p-6 max-w-6xl mx-auto">
 
           {/* Back */}
           <button
@@ -170,11 +170,10 @@ const ArtworkDetail = () => {
                 <div className="flex gap-1.5 flex-shrink-0">
                   <button
                     onClick={() => setIsFavorite(!isFavorite)}
-                    className={`p-2.5 rounded-xl border-2 transition ${
-                      isFavorite
+                    className={`p-2.5 rounded-xl border-2 transition ${isFavorite
                         ? 'border-red-200 bg-red-50 text-red-500'
                         : 'border-gray-200 text-gray-400 hover:border-red-200 hover:text-red-500'
-                    }`}
+                      }`}
                   >
                     <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
                   </button>
@@ -225,10 +224,10 @@ const ArtworkDetail = () => {
               {/* Details Grid */}
               <div className="grid grid-cols-2 gap-3 py-4 border-y border-gray-100">
                 {[
-                  ['Category',   artwork.category],
-                  ['Medium',     artwork.medium     || 'Not specified'],
+                  ['Category', artwork.category],
+                  ['Medium', artwork.medium || 'Not specified'],
                   ['Dimensions', artwork.dimensions || 'Not specified'],
-                  ['Listed',     formatDate(artwork.createdAt)],
+                  ['Listed', formatDate(artwork.createdAt)],
                 ].map(([k, v]) => (
                   <div key={k}>
                     <p className="text-xs text-gray-400 uppercase tracking-wide">{k}</p>
@@ -255,9 +254,8 @@ const ArtworkDetail = () => {
               )}
 
               {/* Availability */}
-              <div className={`flex items-center gap-2 text-sm font-semibold ${
-                artwork.isAvailable ? 'text-green-600' : 'text-red-500'
-              }`}>
+              <div className={`flex items-center gap-2 text-sm font-semibold ${artwork.isAvailable ? 'text-green-600' : 'text-red-500'
+                }`}>
                 <div className={`w-2 h-2 rounded-full ${artwork.isAvailable ? 'bg-green-500' : 'bg-red-500'}`} />
                 {artwork.isAvailable ? 'Available for purchase' : 'This artwork has been sold'}
               </div>
@@ -287,10 +285,13 @@ const ArtworkDetail = () => {
                   <button
                     onClick={handleChat}
                     disabled={chatLoading}
-                    className="w-full py-3 border-2 border-purple-200 text-purple-600 rounded-xl font-semibold hover:bg-purple-50 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold text-sm hover:bg-purple-700 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >
-                    {chatLoading ? <Loader className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-5 h-5" />}
-                    Contact Artist
+                    {chatLoading
+                      ? <Loader className="w-3.5 h-3.5 animate-spin" />
+                      : <MessageCircle className="w-3.5 h-3.5" />
+                    }
+                    Message
                   </button>
                 </div>
               )}
@@ -298,9 +299,9 @@ const ArtworkDetail = () => {
               {/* Trust badges */}
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  [Shield,  'Verified',  'Authentic artwork' ],
-                  [Truck,   'Delivery',  '5-7 business days' ],
-                  [Package, 'Packaged',  'Safe packaging'    ],
+                  [Shield, 'Verified', 'Authentic artwork'],
+                  [Truck, 'Delivery', '5-7 business days'],
+                  [Package, 'Packaged', 'Safe packaging'],
                 ].map(([Icon, title, desc]) => (
                   <div key={title} className="bg-gray-50 rounded-xl p-2.5 text-center border border-gray-100">
                     <Icon className="w-5 h-5 text-purple-600 mx-auto mb-1" />
@@ -373,12 +374,11 @@ const ArtworkDetail = () => {
               {artwork.rating > 0 && (
                 <div className="flex items-center gap-2">
                   <div className="flex gap-0.5">
-                    {[1,2,3,4,5].map(s => (
-                      <Star key={s} className={`w-4 h-4 ${
-                        s <= Math.round(artwork.rating)
+                    {[1, 2, 3, 4, 5].map(s => (
+                      <Star key={s} className={`w-4 h-4 ${s <= Math.round(artwork.rating)
                           ? 'fill-yellow-400 text-yellow-400'
                           : 'text-gray-200'
-                      }`} />
+                        }`} />
                     ))}
                   </div>
                   <span className="font-bold text-gray-900">{artwork.rating.toFixed(1)}</span>
@@ -417,12 +417,11 @@ const ArtworkDetail = () => {
                           <p className="font-bold text-gray-900 text-sm">{review.buyerName}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <div className="flex gap-0.5">
-                              {[1,2,3,4,5].map(s => (
-                                <Star key={s} className={`w-3.5 h-3.5 ${
-                                  s <= review.rating
+                              {[1, 2, 3, 4, 5].map(s => (
+                                <Star key={s} className={`w-3.5 h-3.5 ${s <= review.rating
                                     ? 'fill-yellow-400 text-yellow-400'
                                     : 'text-gray-200'
-                                }`} />
+                                  }`} />
                               ))}
                             </div>
                             <span className="text-xs text-gray-400">

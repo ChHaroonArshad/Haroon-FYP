@@ -9,10 +9,10 @@ const {
 } = require('../controllers/orderController');
 const { protect } = require('../middleware/auth');
 
-router.post('/',               protect, createOrder);
-router.get('/my',              protect, getMyOrders);
-router.get('/seller',          protect, getSellerOrders);
-router.get('/:id',             protect, getOrderById);
-router.put('/:id/status',      protect, updateOrderStatus);
+router.post('/',          protect, createOrder);
+router.get('/my',         protect, getMyOrders);
+router.get('/seller',     protect, getSellerOrders);
+router.get('/:id',        protect, getOrderById);
+router.put('/:id/status', protect, updateOrderStatus);
 
 module.exports = router;

@@ -13,10 +13,20 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
     senderName:   { type: String, required: true },
-    senderAvatar: { type: String, default: '' },
-    senderRole:   { type: String, enum: ['buyer', 'artist'], required: true },
-    text:         { type: String, required: true, trim: true },
-    read:         { type: Boolean, default: false },
+    senderAvatar: { type: String, default: ''    },
+    senderRole:   {
+      type:     String,
+      enum:     ['buyer', 'artist', 'admin'],
+      required: true,
+    },
+    text:         { type: String, default: '', trim: true },
+    image:        { type: String, default: '' },
+    messageType:  {
+      type:    String,
+      enum:    ['text', 'image', 'payment_proof', 'payment_info'],
+      default: 'text',
+    },
+    read: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

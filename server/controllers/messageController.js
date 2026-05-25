@@ -4,179 +4,176 @@ const User         = require('../models/User');
 const { createNotification } = require('./notificationController');
 
 // POST /api/messages/conversation
-// Start or get existing conversation between buyer and seller
 const getOrCreateConversation = async (req, res) => {
   try {
     const { sellerId } = req.body;
-
     if (!sellerId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Seller ID is required',
-      });
+      return res.status(400).json({ success: false, message: 'Seller ID required' });
     }
-
     const seller = await User.findById(sellerId);
     if (!seller) {
-      return res.status(404).json({
-        success: false,
-        message: 'Seller not found',
-      });
+      return res.status(404).json({ success: false, message: 'Seller not found' });
     }
-
     const buyerId = req.user._id;
-
-    // Find existing conversation
-    let conversation = await Conversation.findOne({
-      buyer:  buyerId,
-      seller: sellerId,
-    });
-
-    // Create if not exists
+    let conversation = await Conversation.findOne({ buyer: buyerId, seller: sellerId });
     if (!conversation) {
       conversation = new Conversation({
-        buyer:        buyerId,
-        seller:       sellerId,
-        buyerName:    req.user.fullName,
-        sellerName:   seller.fullName,
-        buyerAvatar:  req.user.avatar  || '',
-        sellerAvatar: seller.avatar    || '',
-        lastMessage:  '',
-        lastMessageAt:new Date(),
+        buyer:         buyerId,
+        seller:        sellerId,
+        buyerName:     req.user.fullName,
+        sellerName:    seller.fullName,
+        buyerAvatar:   req.user.avatar || '',
+        sellerAvatar:  seller.avatar   || '',
+        lastMessage:   '',
+        lastMessageAt: new Date(),
+        isAdminChat:   false,
       });
       await conversation.save();
     }
-
-    return res.status(200).json({
-      success:      true,
-      conversation,
-    });
+    return res.status(200).json({ success: true, conversation });
   } catch (error) {
-    console.error('Get/create conversation error:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error: ' + error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
 
-// GET /api/messages/conversations — get all conversations for logged-in user
+// POST /api/messages/admin-conversation — buyer starts chat with admin
+const getOrCreateAdminConversation = async (req, res) => {
+  try {
+    const buyerId = req.user._id;
+    let conversation = await Conversation.findOne({
+      buyer: buyerId, isAdminChat: true,
+    });
+    if (!conversation) {
+      conversation = new Conversation({
+        buyer:         buyerId,
+        seller:        null,
+        buyerName:     req.user.fullName,
+        sellerName:    'ArtBazaar Support',
+        buyerAvatar:   req.user.avatar || '',
+        sellerAvatar:  '',
+        lastMessage:   '',
+        lastMessageAt: new Date(),
+        isAdminChat:   true,
+        buyerUnread:   0,
+        sellerUnread:  0,
+      });
+      await conversation.save();
+    }
+    return res.status(200).json({ success: true, conversation });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+  }
+};
+
+// GET /api/messages/conversations
 const getConversations = async (req, res) => {
   try {
     const userId = req.user._id;
     const role   = req.user.role;
 
     let conversations;
-    if (role === 'artist') {
+
+    if (role === 'admin') {
+      conversations = await Conversation.find({ isAdminChat: true })
+        .sort({ lastMessageAt: -1 });
+    } else if (role === 'artist') {
       conversations = await Conversation.find({ seller: userId })
         .sort({ lastMessageAt: -1 });
     } else {
-      conversations = await Conversation.find({ buyer: userId })
-        .sort({ lastMessageAt: -1 });
+      // buyer — include conversations where isAdminChat is false OR not set
+      conversations = await Conversation.find({
+        buyer: userId,
+        isAdminChat: { $ne: true },  // ← THIS IS THE FIX
+      }).sort({ lastMessageAt: -1 });
     }
 
-    return res.status(200).json({
-      success: true,
-      conversations,
-    });
+    return res.status(200).json({ success: true, conversations });
   } catch (error) {
-    console.error('Get conversations error:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error: ' + error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+  }
+};
+// GET /api/messages/admin-conversations — admin sees all admin chats
+const getAdminConversations = async (req, res) => {
+  try {
+    const conversations = await Conversation.find({ isAdminChat: true })
+      .sort({ lastMessageAt: -1 });
+    return res.status(200).json({ success: true, conversations });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
 
-// GET /api/messages/:conversationId — get all messages in a conversation
+// GET /api/messages/:conversationId
 const getMessages = async (req, res) => {
   try {
     const { conversationId } = req.params;
     const userId             = req.user._id.toString();
+    const role               = req.user.role;
 
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
-      return res.status(404).json({
-        success: false,
-        message: 'Conversation not found',
-      });
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
     }
 
-    // Only buyer or seller can read
-    if (
-      conversation.buyer.toString()  !== userId &&
-      conversation.seller.toString() !== userId
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized',
-      });
+    // Auth check
+    const isBuyer  = conversation.buyer?.toString()  === userId;
+    const isSeller = conversation.seller?.toString() === userId;
+    const isAdmin  = role === 'admin';
+    if (!isBuyer && !isSeller && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    const messages = await Message.find({ conversation: conversationId })
-      .sort({ createdAt: 1 });
+    const messages = await Message.find({ conversation: conversationId }).sort({ createdAt: 1 });
 
-    // Mark messages as read
-    const role = req.user.role;
+    // Mark as read
     if (role === 'artist') {
-      await Message.updateMany(
-        { conversation: conversationId, senderRole: 'buyer', read: false },
-        { read: true }
-      );
+      await Message.updateMany({ conversation: conversationId, senderRole: 'buyer',  read: false }, { read: true });
       await Conversation.findByIdAndUpdate(conversationId, { sellerUnread: 0 });
-    } else {
-      await Message.updateMany(
-        { conversation: conversationId, senderRole: 'artist', read: false },
-        { read: true }
-      );
+    } else if (role === 'buyer' || role === 'admin') {
+      await Message.updateMany({ conversation: conversationId, senderRole: { $in: ['artist', 'admin'] }, read: false }, { read: true });
       await Conversation.findByIdAndUpdate(conversationId, { buyerUnread: 0 });
     }
 
-    return res.status(200).json({
-      success: true,
-      messages,
-    });
+    return res.status(200).json({ success: true, messages });
   } catch (error) {
-    console.error('Get messages error:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error: ' + error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
 
-// POST /api/messages/send — send a message
+// POST /api/messages/send — send text or image
 const sendMessage = async (req, res) => {
   try {
-    const { conversationId, text } = req.body;
+    const { conversationId, text, messageType } = req.body;
 
-    if (!conversationId || !text?.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Conversation ID and message text are required',
-      });
+    if (!conversationId) {
+      return res.status(400).json({ success: false, message: 'Conversation ID required' });
+    }
+    if (!text?.trim() && !req.file) {
+      return res.status(400).json({ success: false, message: 'Text or image required' });
     }
 
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
-      return res.status(404).json({
-        success: false,
-        message: 'Conversation not found',
-      });
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
     }
 
     const userId = req.user._id.toString();
-    if (
-      conversation.buyer.toString()  !== userId &&
-      conversation.seller.toString() !== userId
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized',
-      });
+    const role   = req.user.role;
+    const isBuyer  = conversation.buyer?.toString()  === userId;
+    const isSeller = conversation.seller?.toString() === userId;
+    const isAdmin  = role === 'admin';
+
+    if (!isBuyer && !isSeller && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    const senderRole = req.user.role === 'artist' ? 'artist' : 'buyer';
+    let senderRole = 'buyer';
+    if (role === 'artist') senderRole = 'artist';
+    if (role === 'admin')  senderRole = 'admin';
+
+    const image = req.file ? `/uploads/${req.file.filename}` : '';
+    const finalType = messageType ||
+      (req.file && messageType === 'payment_proof' ? 'payment_proof' : req.file ? 'image' : 'text');
 
     const message = new Message({
       conversation:  conversationId,
@@ -184,53 +181,58 @@ const sendMessage = async (req, res) => {
       senderName:    req.user.fullName,
       senderAvatar:  req.user.avatar || '',
       senderRole,
-      text:          text.trim(),
+      text:          text?.trim() || '',
+      image,
+      messageType:   finalType,
       read:          false,
     });
 
     await message.save();
-    // Notify the other person
-const recipientId = senderRole === 'buyer'
-  ? conversation.seller
-  : conversation.buyer;
 
-await createNotification({
-  recipient: recipientId,
-  type:      'message',
-  title:     'New Message',
-  message:   `${req.user.fullName}: ${text.trim().slice(0, 60)}${text.length > 60 ? '...' : ''}`,
-  link:      senderRole === 'buyer' ? '/seller/chat' : '/buyer/messages',
-});
+    // Notify recipient
+    let recipientId = null;
+    let notifLink   = '/buyer/messages';
+    if (senderRole === 'buyer') {
+      recipientId = conversation.seller;
+      notifLink   = conversation.isAdminChat ? '/admin/chat' : '/seller/chat';
+    } else if (senderRole === 'artist') {
+      recipientId = conversation.buyer;
+      notifLink   = '/buyer/messages';
+    } else if (senderRole === 'admin') {
+      recipientId = conversation.buyer;
+      notifLink   = '/buyer/support';
+    }
 
-    // Update conversation last message + unread count
+    if (recipientId) {
+      await createNotification({
+        recipient: recipientId,
+        type:      'message',
+        title:     'New Message',
+        message:   `${req.user.fullName}: ${text?.slice(0, 60) || '📷 Image'}`,
+        link:      notifLink,
+      });
+    }
+
     const updateData = {
-      lastMessage:   text.trim(),
+      lastMessage:   text?.trim() || '📷 Image',
       lastMessageAt: new Date(),
     };
-
-    if (senderRole === 'buyer') {
-      updateData.$inc = { sellerUnread: 1 };
-    } else {
-      updateData.$inc = { buyerUnread: 1 };
-    }
+    if (senderRole === 'buyer')  updateData.$inc = { sellerUnread: 1 };
+    if (senderRole === 'artist') updateData.$inc = { buyerUnread: 1  };
+    if (senderRole === 'admin')  updateData.$inc = { buyerUnread: 1  };
 
     await Conversation.findByIdAndUpdate(conversationId, updateData);
 
-    return res.status(201).json({
-      success: true,
-      message,
-    });
+    return res.status(201).json({ success: true, message });
   } catch (error) {
-    console.error('Send message error:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error: ' + error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
 
 module.exports = {
   getOrCreateConversation,
+  getOrCreateAdminConversation,
+  getAdminConversations,
   getConversations,
   getMessages,
   sendMessage,

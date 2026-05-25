@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, ShoppingBag, Heart, MessageCircle, User,
   Search, LogOut, Palette, Store, Calendar, X,
-  Bell, Video, Repeat
+  Bell, Video, Repeat , HeadphonesIcon
 } from 'lucide-react';
 import { useUser, getImageUrl } from '../hooks/useUser';
 import { messageAPI } from '../services/api';
@@ -56,10 +56,12 @@ const handleLogout = () => {
     { icon: MessageCircle, label: 'Messages',       to: '/buyer/messages', badge: unreadCount },
     { icon: Bell,          label: 'Notifications',  to: '/buyer/notifications' },
     { icon: Store,         label: 'Art Store',      to: '/buyer/store'         },
+    { icon: ShoppingBag, label: 'Store Orders', to: '/buyer/store-orders' },
     { icon: Video,         label: 'Live Sessions',  to: '/buyer/live-sessions' },
     { icon: Calendar,      label: 'Events',         to: '/buyer/events'        },
     { icon: User,          label: 'Profile',        to: '/buyer/profile'       },
     { icon: Palette, label: 'Custom Request', to: '/buyer/custom-request' },
+    { icon: HeadphonesIcon, label: 'Support', to: '/buyer/support' },
   ];
 
   const isActive  = (to) => location.pathname === to;

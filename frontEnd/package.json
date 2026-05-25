@@ -12,6 +12,8 @@
     "dev2": "nodemon server.js"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^6.4.0",
+    "@stripe/stripe-js": "^9.6.0",
     "@tailwindcss/vite": "^4.1.18",
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
@@ -27,6 +29,7 @@
     "react-avatar-editor": "^15.1.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.1",
+    "socket.io-client": "^4.8.3",
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {

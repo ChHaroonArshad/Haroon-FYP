@@ -1,147 +1,68 @@
-const User = require('../models/User');
+const User    = require('../models/User');
 const Artwork = require('../models/Artwork');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
-const validator = require('validator');
+const jwt     = require('jsonwebtoken');
+const bcrypt  = require('bcryptjs');
+const crypto  = require('crypto');
+const fs      = require('fs');
+const path    = require('path');
 
+const OTP       = require('../models/OTP');
+const sendEmail = require('../utils/sendEmail');
 
-const generateToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
-};
+// ── Helper ────────────────────────────────────────────────────
+const generateToken = (userId) =>
+  jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
-const isValidPassword = (password) => {
-  const minLength = 8;
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasLowercase = /[a-z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-  return password.length >= minLength && hasUppercase && hasLowercase && hasNumber && hasSpecial;
-};
-
+// ── Signup (old direct signup — kept for backward compat) ─────
 const signup = async (req, res) => {
   try {
-    // 1. Destructure and Sanitize Inputs (Convert to strings to prevent NoSQL injection objects)
-    let { fullName, email, password, role } = req.body;
+    const { fullName, email, password, role } = req.body;
 
-    fullName = fullName ? String(fullName).trim() : '';
-    email = email ? String(email).trim().toLowerCase() : '';
-    password = password ? String(password) : '';
-    role = role ? String(role) : 'buyer';
+    if (!fullName || !email || !password)
+      return res.status(400).json({ success: false, message: 'Please provide full name, email and password' });
 
-    // 2. Strict Input Validation
-    if (!fullName || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide full name, email, and password',
-      });
-    }
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser)
+      return res.status(400).json({ success: false, message: 'An account with this email already exists' });
 
-    // STRICT NAME CHECK: Letters, spaces, hyphens only.
-    const nameRegex = /^[a-zA-Z][a-zA-Z\s'-]{2,49}$/;
-    if (!nameRegex.test(fullName)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Full name must contain valid alphabetic characters and be between 3 and 50 characters long.',
-      });
-    }
-
-    // STRICT EMAIL CHECK
-    const localPart = email.split('@')[0];
-    if (!validator.isEmail(email) || /^\d+$/.test(localPart)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid, non-numeric email format.',
-      });
-    }
-
-    if (!isValidPassword(password)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password must be 8+ characters and include uppercase, lowercase, numbers, and special characters.',
-      });
-    }
-    if (!['buyer', 'artist', 'admin'].includes(role)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid role provided',
-      });
-    }
-
-    // 3. Check for existing user
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(409).json({ // 409 Conflict is better for duplicates than 400
-        success: false,
-        message: 'An account with this email already exists',
-      });
-    }
-
-    // 4. Hash password
-    const hashedPassword = await bcrypt.hash(password, 12); // 12 rounds is excellent for modern security
-
-    // 5. Create user
+    const hashedPassword = await bcrypt.hash(password, 12);
     const user = new User({
       fullName,
-      email,
+      email:    email.toLowerCase(),
       password: hashedPassword,
-      role,
-      avatar: req.file ? `/uploads/${req.file.filename}` : '', // <-- ADD THIS LINE
+      role:     role || 'buyer',
     });
 
     await user.save();
     const token = generateToken(user._id);
 
-    // 6. Return sanitized user object
     return res.status(201).json({
       success: true,
       message: 'Account created successfully',
       token,
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        avatar: user.avatar,
-      },
+      user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role, avatar: user.avatar },
     });
   } catch (error) {
-    console.error('Signup error:', error); // Log the full error to the server, not just error.message
-    return res.status(500).json({
-      success: false,
-      message: 'An unexpected error occurred during signup. Please try again later.', // Don't expose database errors to the client
-    });
+    console.error('Signup error:', error.message);
+    return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
 
+// ── Login ─────────────────────────────────────────────────────
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide email and password',
-      });
-    }
+    if (!email || !password)
+      return res.status(400).json({ success: false, message: 'Please provide email and password' });
 
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password',
-      });
-    }
+    if (!user)
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password',
-      });
-    }
+    if (!isMatch)
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
 
     const token = generateToken(user._id);
 
@@ -149,122 +70,236 @@ const login = async (req, res) => {
       success: true,
       message: 'Login successful',
       token,
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        avatar: user.avatar,
-      },
+      user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role, avatar: user.avatar },
     });
   } catch (error) {
     console.error('Login error:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error: ' + error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
 
+// ── Send OTP for signup ───────────────────────────────────────
+const sendOTP = async (req, res) => {
+  try {
+    const { fullName, email, password, role } = req.body;
+
+    if (!fullName || !email || !password)
+      return res.status(400).json({ success: false, message: 'All fields required' });
+
+    const existing = await User.findOne({ email: email.toLowerCase() });
+    if (existing)
+      return res.status(400).json({ success: false, message: 'Email already registered' });
+
+    const otpCode        = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    await OTP.deleteMany({ email: email.toLowerCase() });
+    await OTP.create({
+      email:     email.toLowerCase(),
+      otp:       otpCode,
+      fullName,
+      password:  hashedPassword,
+      role:      role || 'buyer',
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    });
+
+    await sendEmail({
+      to:      email,
+      subject: 'ArtBazaar — Verify Your Email',
+      html: `
+        <div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:32px;text-align:center;">
+            <h1 style="color:#fff;margin:0;font-size:26px;font-weight:900;">🎨 ArtBazaar</h1>
+            <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:14px;">Pakistan's #1 Art Marketplace</p>
+          </div>
+          <div style="padding:32px;text-align:center;">
+            <h2 style="color:#111827;margin-bottom:8px;">Verify Your Email</h2>
+            <p style="color:#6b7280;margin-bottom:24px;">Hi <strong>${fullName}</strong>! Enter this code to complete your registration:</p>
+            <div style="background:#f3f4f6;border-radius:12px;padding:24px;margin:0 auto 24px;display:inline-block;min-width:200px;">
+              <span style="font-size:42px;font-weight:900;color:#7c3aed;letter-spacing:10px;">${otpCode}</span>
+            </div>
+            <p style="color:#9ca3af;font-size:13px;margin:0;">Expires in <strong>10 minutes</strong>.</p>
+            <p style="color:#9ca3af;font-size:13px;margin:6px 0 0;">Didn't request this? Ignore this email.</p>
+          </div>
+          <div style="background:#f9fafb;padding:16px;text-align:center;">
+            <p style="color:#d1d5db;font-size:12px;margin:0;">© 2025 ArtBazaar. All rights reserved.</p>
+          </div>
+        </div>
+      `,
+    });
+
+    return res.status(200).json({ success: true, message: 'OTP sent to your email' });
+  } catch (error) {
+    console.error('Send OTP error:', error.message);
+    return res.status(500).json({ success: false, message: 'Failed to send OTP: ' + error.message });
+  }
+};
+
+// ── Verify OTP and create account ────────────────────────────
+const verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp)
+      return res.status(400).json({ success: false, message: 'Email and OTP required' });
+
+    const record = await OTP.findOne({ email: email.toLowerCase() });
+
+    if (!record)
+      return res.status(400).json({ success: false, message: 'OTP expired or not found. Please request a new one.' });
+
+    if (record.otp !== otp.toString())
+      return res.status(400).json({ success: false, message: 'Invalid OTP. Please try again.' });
+
+    if (new Date() > record.expiresAt) {
+      await OTP.deleteOne({ _id: record._id });
+      return res.status(400).json({ success: false, message: 'OTP expired. Please request a new one.' });
+    }
+
+    const user = new User({
+      fullName: record.fullName,
+      email:    record.email,
+      password: record.password, // already hashed
+      role:     record.role,
+    });
+    await user.save();
+    await OTP.deleteOne({ _id: record._id });
+
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Account created successfully!',
+      token,
+      user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role, avatar: user.avatar || '' },
+    });
+  } catch (error) {
+    console.error('Verify OTP error:', error.message);
+    return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+  }
+};
+
+// ── Forgot Password — sends OTP email ────────────────────────
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide your email',
-      });
-    }
+    if (!email)
+      return res.status(400).json({ success: false, message: 'Please provide your email' });
 
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      return res.status(200).json({
-        success: true,
-        message: 'If this email exists a reset link has been sent',
-      });
-    }
+    // Always respond success to prevent email enumeration
+    if (!user)
+      return res.status(200).json({ success: true, message: 'If this email exists, a code has been sent.' });
 
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    user.resetPasswordExpires = Date.now() + 60 * 60 * 1000;
+    const otp    = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    user.resetOTP       = otp;
+    user.resetOTPExpiry = expiry;
     await user.save({ validateBeforeSave: false });
 
-    return res.status(200).json({
-      success: true,
-      message: 'Reset token generated',
-      resetToken,
-      resetUrl: `${process.env.CLIENT_URL}/reset-password?token=${resetToken}&email=${email}`,
+    await sendEmail({
+      to:      user.email,
+      subject: 'ArtBazaar — Password Reset Code',
+      html: `
+        <div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:32px;text-align:center;">
+            <h1 style="color:#fff;margin:0;font-size:26px;font-weight:900;">🔐 ArtBazaar</h1>
+            <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:14px;">Password Reset Request</p>
+          </div>
+          <div style="padding:32px;text-align:center;">
+            <h2 style="color:#111827;margin-bottom:8px;">Reset Your Password</h2>
+            <p style="color:#6b7280;margin-bottom:24px;">Hi <strong>${user.fullName}</strong>! Use this code to reset your password:</p>
+            <div style="background:#f3f4f6;border-radius:12px;padding:24px;margin:0 auto 24px;display:inline-block;min-width:200px;">
+              <span style="font-size:42px;font-weight:900;color:#7c3aed;letter-spacing:10px;">${otp}</span>
+            </div>
+            <p style="color:#9ca3af;font-size:13px;margin:0;">Expires in <strong>10 minutes</strong>.</p>
+            <p style="color:#9ca3af;font-size:13px;margin:6px 0 0;">Didn't request this? Your account is safe — ignore this email.</p>
+          </div>
+          <div style="background:#f9fafb;padding:16px;text-align:center;">
+            <p style="color:#d1d5db;font-size:12px;margin:0;">© 2025 ArtBazaar. All rights reserved.</p>
+          </div>
+        </div>
+      `,
     });
+
+    return res.status(200).json({ success: true, message: 'OTP sent to your email' });
   } catch (error) {
     console.error('Forgot password error:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error',
-    });
+    return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
 
+// ── Verify Reset OTP ──────────────────────────────────────────
+const verifyResetOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp)
+      return res.status(400).json({ success: false, message: 'Email and OTP required' });
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user)
+      return res.status(400).json({ success: false, message: 'Invalid request' });
+
+    if (!user.resetOTP || user.resetOTP !== otp.toString())
+      return res.status(400).json({ success: false, message: 'Invalid OTP. Please try again.' });
+
+    if (new Date() > user.resetOTPExpiry) {
+      user.resetOTP       = undefined;
+      user.resetOTPExpiry = undefined;
+      await user.save({ validateBeforeSave: false });
+      return res.status(400).json({ success: false, message: 'OTP expired. Please request a new one.' });
+    }
+
+    return res.status(200).json({ success: true, message: 'OTP verified successfully' });
+  } catch (error) {
+    console.error('Verify reset OTP error:', error.message);
+    return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+  }
+};
+
+// ── Reset Password ────────────────────────────────────────────
 const resetPassword = async (req, res) => {
   try {
-    const { token, email, newPassword } = req.body;
+    const { email, newPassword } = req.body;
 
-    if (!token || !email || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'All fields are required',
-      });
-    }
-    if (newPassword.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password must be at least 8 characters',
-      });
-    }
+    if (!email || !newPassword)
+      return res.status(400).json({ success: false, message: 'Email and new password are required' });
 
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-    const user = await User.findOne({
-      email: email.toLowerCase(),
-      resetPasswordToken: hashedToken,
-      resetPasswordExpires: { $gt: Date.now() },
-    });
+    if (newPassword.length < 8)
+      return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
 
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired reset token',
-      });
-    }
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user)
+      return res.status(400).json({ success: false, message: 'User not found' });
 
-    user.password = await bcrypt.hash(newPassword, 12);
-    user.resetPasswordToken = undefined;
+    user.password       = await bcrypt.hash(newPassword, 12);
+    user.resetOTP       = undefined;
+    user.resetOTPExpiry = undefined;
+    // Also clear old token-based fields if they exist
+    user.resetPasswordToken   = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    return res.status(200).json({
-      success: true,
-      message: 'Password reset successful',
-    });
+    return res.status(200).json({ success: true, message: 'Password reset successfully' });
   } catch (error) {
     console.error('Reset password error:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error',
-    });
+    return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
 
+// ── Get Me ────────────────────────────────────────────────────
 const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     return res.status(200).json({ success: true, user });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Server error',
-    });
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
+// ── Update Profile ────────────────────────────────────────────
 const updateProfile = async (req, res) => {
   try {
     const {
@@ -274,25 +309,21 @@ const updateProfile = async (req, res) => {
       deliveryOptions, notifications,
     } = req.body;
 
-    if (!fullName?.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Full name is required',
-      });
-    }
+    if (!fullName?.trim())
+      return res.status(400).json({ success: false, message: 'Full name is required' });
 
     const updateData = {
-      fullName: fullName.trim(),
-      phone: phone || '',
-      city: city || '',
-      country: country || 'Pakistan',
-      bio: bio || '',
-      specialty: specialty || '',
-      experience: experience || '',
-      instagram: instagram || '',
-      website: website || '',
-      storeName: storeName || '',
-      storeTagline: storeTagline || '',
+      fullName:           fullName.trim(),
+      phone:              phone        || '',
+      city:               city         || '',
+      country:            country      || 'Pakistan',
+      bio:                bio          || '',
+      specialty:          specialty    || '',
+      experience:         experience   || '',
+      instagram:          instagram    || '',
+      website:            website      || '',
+      storeName:          storeName    || '',
+      storeTagline:       storeTagline || '',
       acceptCustomOrders: acceptCustomOrders === 'false' ? false : true,
     };
 
@@ -317,91 +348,52 @@ const updateProfile = async (req, res) => {
       updateData.avatar = `/uploads/${req.file.filename}`;
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      updateData,
-      { new: true }
-    ).select('-password');
+    const user = await User.findByIdAndUpdate(req.user.id, updateData, { new: true }).select('-password');
 
-    return res.status(200).json({
-      success: true,
-      message: 'Profile updated successfully',
-      user,
-    });
+    return res.status(200).json({ success: true, message: 'Profile updated successfully', user });
   } catch (error) {
     console.error('Update profile error:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error: ' + error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
 
+// ── Change Password ───────────────────────────────────────────
 const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'All fields are required',
-      });
-    }
-    if (newPassword.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: 'New password must be at least 8 characters',
-      });
-    }
+    if (!currentPassword || !newPassword)
+      return res.status(400).json({ success: false, message: 'All fields are required' });
+    if (newPassword.length < 8)
+      return res.status(400).json({ success: false, message: 'New password must be at least 8 characters' });
 
-    const user = await User.findById(req.user.id);
+    const user    = await User.findById(req.user.id);
     const isMatch = await bcrypt.compare(currentPassword, user.password);
-
-    if (!isMatch) {
-      return res.status(400).json({
-        success: false,
-        message: 'Current password is incorrect',
-      });
-    }
+    if (!isMatch)
+      return res.status(400).json({ success: false, message: 'Current password is incorrect' });
 
     user.password = await bcrypt.hash(newPassword, 12);
     await user.save();
 
-    return res.status(200).json({
-      success: true,
-      message: 'Password changed successfully',
-    });
+    return res.status(200).json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
     console.error('Change password error:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error',
-    });
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
+// ── Delete Account ────────────────────────────────────────────
 const deleteAccount = async (req, res) => {
   try {
     const { password } = req.body;
+    if (!password)
+      return res.status(400).json({ success: false, message: 'Please enter your password to confirm' });
 
-    if (!password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please enter your password to confirm',
-      });
-    }
-
-    const user = await User.findById(req.user.id);
+    const user    = await User.findById(req.user.id);
     const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch)
+      return res.status(400).json({ success: false, message: 'Incorrect password. Account not deleted.' });
 
-    if (!isMatch) {
-      return res.status(400).json({
-        success: false,
-        message: 'Incorrect password. Account not deleted.',
-      });
-    }
-
-    // Delete all artworks and their images
     const artworks = await Artwork.find({ artist: req.user.id });
     for (const art of artworks) {
       if (art.image) {
@@ -411,46 +403,33 @@ const deleteAccount = async (req, res) => {
       await art.deleteOne();
     }
 
-    // Delete avatar
     if (user.avatar && user.avatar.startsWith('/uploads/')) {
       const avatarPath = path.join(__dirname, '..', user.avatar);
       if (fs.existsSync(avatarPath)) fs.unlinkSync(avatarPath);
     }
 
     await user.deleteOne();
-
-    return res.status(200).json({
-      success: true,
-      message: 'Account deleted successfully',
-    });
+    return res.status(200).json({ success: true, message: 'Account deleted successfully' });
   } catch (error) {
     console.error('Delete account error:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error: ' + error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
+
 // ── Wishlist ──────────────────────────────────────────────────
 const toggleWishlist = async (req, res) => {
   try {
     const { artworkId } = req.body;
-    if (!artworkId) {
+    if (!artworkId)
       return res.status(400).json({ success: false, message: 'Artwork ID required' });
-    }
-    const user = await User.findById(req.user._id);
+
+    const user  = await User.findById(req.user._id);
     const index = user.wishlist.findIndex(id => id.toString() === artworkId.toString());
-    if (index === -1) {
-      user.wishlist.push(artworkId);
-    } else {
-      user.wishlist.splice(index, 1);
-    }
+    if (index === -1) user.wishlist.push(artworkId);
+    else              user.wishlist.splice(index, 1);
     await user.save();
-    return res.status(200).json({
-      success: true,
-      wishlist: user.wishlist,
-      isWishlisted: index === -1,
-    });
+
+    return res.status(200).json({ success: true, wishlist: user.wishlist, isWishlisted: index === -1 });
   } catch (error) {
     console.error('Toggle wishlist error:', error.message);
     return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
@@ -460,13 +439,10 @@ const toggleWishlist = async (req, res) => {
 const getWishlist = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate({
-      path: 'wishlist',
+      path:     'wishlist',
       populate: { path: 'artist', select: 'fullName avatar city specialty' },
     });
-    return res.status(200).json({
-      success: true,
-      wishlist: user.wishlist || [],
-    });
+    return res.status(200).json({ success: true, wishlist: user.wishlist || [] });
   } catch (error) {
     console.error('Get wishlist error:', error.message);
     return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
@@ -476,7 +452,10 @@ const getWishlist = async (req, res) => {
 module.exports = {
   signup,
   login,
+  sendOTP,
+  verifyOTP,
   forgotPassword,
+  verifyResetOTP,
   resetPassword,
   getMe,
   updateProfile,

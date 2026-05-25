@@ -90,7 +90,7 @@ export default function CustomOrderRequests() {
           subtitle={`${requests.filter(r => r.status === 'pending').length} pending responses`}
         />
 
-        <main className="p-4 md:p-6 w-full max-w-7xl mx-auto space-y-5">
+        <main className="p-4 md:p-6 max-w-4xl mx-auto space-y-5">
 
           {/* Hero — FIXED: dark text on gradient background */}
           <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-5 shadow-xl shadow-indigo-200/50 relative overflow-hidden">
