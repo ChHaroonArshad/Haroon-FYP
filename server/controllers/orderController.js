@@ -1,8 +1,8 @@
-const Order        = require('../models/Order');
-const Artwork      = require('../models/Artwork');
-const User         = require('../models/User');
+const Order = require('../models/Order');
+const Artwork = require('../models/Artwork');
+const User = require('../models/User');
 const StoreProduct = require('../models/StoreProduct');
-const StoreOrder   = require('../models/StoreOrder');
+const StoreOrder = require('../models/StoreOrder');
 const { createNotification } = require('./notificationController');
 
 const generateOrderNumber = async () => {
@@ -48,21 +48,21 @@ const createOrder = async (req, res) => {
 
     const order = new Order({
       orderNumber,
-      buyer:        req.user._id,
-      buyerName:    req.user.fullName,
-      buyerEmail:   req.user.email || '',
-      artwork:      artwork._id,
+      buyer: req.user._id,
+      buyerName: req.user.fullName,
+      buyerEmail: req.user.email || '',
+      artwork: artwork._id,
       artworkTitle: artwork.title,
       artworkImage: artwork.image,
       artworkPrice: artwork.price,
-      totalAmount:  artwork.price,
-      seller:       artwork.artist._id,
-      sellerName:   artwork.artist.fullName || artwork.artistName || '',
-      fullName:     fullName.trim(),
-      phone:        phone.trim(),
-      address:      address.trim(),
-      city:         city.trim(),
-      notes:        notes          || '',
+      totalAmount: artwork.price,
+      seller: artwork.artist._id,
+      sellerName: artwork.artist.fullName || artwork.artistName || '',
+      fullName: fullName.trim(),
+      phone: phone.trim(),
+      address: address.trim(),
+      city: city.trim(),
+      notes: notes || '',
       paymentMethod: mappedMethod,
       paymentStatus: 'unpaid',
     });
@@ -71,23 +71,25 @@ const createOrder = async (req, res) => {
 
     await createNotification({
       recipient: req.user._id,
-      type:      'order',
-      title:     'Order Placed Successfully',
-      message:   `Your order for "${artwork.title}" has been placed. PKR ${artwork.price.toLocaleString()}`,
-      link:      '/buyer/orders',
+      type: 'order',
+      title: 'Order Placed Successfully',
+      message: `Your order for "${artwork.title}" has been placed. PKR ${artwork.price.toLocaleString()}`,
+      link: '/buyer/orders',
     });
 
     await createNotification({
       recipient: artwork.artist._id,
-      type:      'order',
-      title:     'New Order Received!',
-      message:   `${req.user.fullName} ordered "${artwork.title}" for PKR ${artwork.price.toLocaleString()}`,
-      link:      '/seller/orders',
+      type: 'order',
+      title: 'New Order Received!',
+      message: `${req.user.fullName} ordered "${artwork.title}" for PKR ${artwork.price.toLocaleString()}`,
+      link: '/seller/orders',
     });
 
-    artwork.isAvailable = false;
-    artwork.sales += 1;
-    await artwork.save();
+    // BUG FIX: Use findByIdAndUpdate to safely bypass validation errors on populated fields
+    await Artwork.findByIdAndUpdate(artwork._id, {
+      isAvailable: false,
+      $inc: { sales: 1 }
+    });
 
     return res.status(201).json({ success: true, message: 'Order placed successfully', order });
   } catch (error) {
@@ -147,16 +149,18 @@ const updateOrderStatus = async (req, res) => {
 
     order.status = status;
     if (status === 'delivered') order.paymentStatus = 'paid';
+
+    // Make artwork available again if order is cancelled
     if (status === 'cancelled') {
       await Artwork.findByIdAndUpdate(order.artwork, { isAvailable: true });
     }
 
     await createNotification({
       recipient: order.buyer,
-      type:      'order',
-      title:     `Order ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-      message:   `Your order "${order.artworkTitle}" status updated to: ${status}`,
-      link:      `/buyer/orders/${order._id}`,
+      type: 'order',
+      title: `Order ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+      message: `Your order "${order.artworkTitle}" status updated to: ${status}`,
+      link: `/buyer/orders/${order._id}`,
     });
 
     await order.save();
@@ -195,11 +199,11 @@ const createStoreOrder = async (req, res) => {
       }
 
       orderItems.push({
-        productId:   product._id,
+        productId: product._id,
         productName: product.name,
-        price:       product.price,
-        quantity:    item.quantity,
-        emoji:       product.emoji || '🎨',
+        price: product.price,
+        quantity: item.quantity,
+        emoji: product.emoji || '🎨',
       });
 
       subtotal += product.price * item.quantity;
@@ -209,25 +213,25 @@ const createStoreOrder = async (req, res) => {
     }
 
     const shippingCost = subtotal >= 5000 ? 0 : 200;
-    const total        = subtotal + shippingCost;
-    const buyer        = await User.findById(req.user._id);
+    const total = subtotal + shippingCost;
+    const buyer = await User.findById(req.user._id);
 
     const order = new StoreOrder({
-      buyer:           req.user._id,
-      buyerName:       buyer.fullName,
-      buyerEmail:      buyer.email    || '',
-      items:           orderItems,
+      buyer: req.user._id,
+      buyerName: buyer.fullName,
+      buyerEmail: buyer.email || '',
+      items: orderItems,
       subtotal,
       shippingCost,
       total,
-      paymentMethod:   paymentMethod  || 'cod',
-      paymentStatus:   paymentMethod === 'card' ? 'paid'      : 'pending',
-      status:          paymentMethod === 'card' ? 'confirmed' : 'pending',
-      cardLast4:       cardLast4       || '',
+      paymentMethod: paymentMethod || 'cod',
+      paymentStatus: paymentMethod === 'card' ? 'paid' : 'pending',
+      status: paymentMethod === 'card' ? 'confirmed' : 'pending',
+      cardLast4: cardLast4 || '',
       stripePaymentId: stripePaymentId || '',
       fullName, phone, address, city,
-      notes:           notes || '',
-      orderNumber:     generateStoreOrderNumber(),
+      notes: notes || '',
+      orderNumber: generateStoreOrderNumber(),
     });
 
     await order.save();
@@ -236,10 +240,10 @@ const createStoreOrder = async (req, res) => {
     for (const admin of admins) {
       await createNotification({
         recipient: admin._id,
-        type:      'order',
-        title:     '🛍️ New Store Order!',
-        message:   `${buyer.fullName} placed a store order — PKR ${total.toLocaleString()}`,
-        link:      '/admin/store-orders',
+        type: 'order',
+        title: '🛍️ New Store Order!',
+        message: `${buyer.fullName} placed a store order — PKR ${total.toLocaleString()}`,
+        link: '/admin/store-orders',
       });
     }
 
@@ -283,10 +287,10 @@ const updateStoreOrderStatus = async (req, res) => {
 
     await createNotification({
       recipient: order.buyer,
-      type:      'order',
-      title:     'Store Order Updated',
-      message:   `Your store order #${order.orderNumber} is now ${status}`,
-      link:      '/buyer/store-orders',
+      type: 'order',
+      title: 'Store Order Updated',
+      message: `Your store order #${order.orderNumber} is now ${status}`,
+      link: '/buyer/store-orders',
     });
 
     return res.status(200).json({ success: true, order });

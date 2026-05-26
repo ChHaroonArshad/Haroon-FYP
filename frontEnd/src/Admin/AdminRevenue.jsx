@@ -1,165 +1,158 @@
 import React, { useState, useEffect } from 'react';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
-import { DollarSign, TrendingUp, ShoppingCart, Users } from 'lucide-react';
+import { DollarSign, TrendingUp, ShoppingCart, Users, Loader, AlertCircle } from 'lucide-react';
+import { adminAPI } from '../services/api';
 
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const revenueData = [120, 195, 155, 280, 310, 245, 390, 420, 355, 480, 520, 610];
-const maxRev = Math.max(...revenueData);
-
-const monthlyData = [
-  { month: 'December', revenue: 'Rs 610K', orders: 342, growth: '+18%', avgOrder: 'Rs 1,784' },
-  { month: 'November', revenue: 'Rs 520K', orders: 298, growth: '+8%', avgOrder: 'Rs 1,745' },
-  { month: 'October', revenue: 'Rs 480K', orders: 274, growth: '+6%', avgOrder: 'Rs 1,752' },
-  { month: 'September', revenue: 'Rs 355K', orders: 201, growth: '-4%', avgOrder: 'Rs 1,766' },
-  { month: 'August', revenue: 'Rs 420K', orders: 238, growth: '+8%', avgOrder: 'Rs 1,765' },
-  { month: 'July', revenue: 'Rs 390K', orders: 220, growth: '+59%', avgOrder: 'Rs 1,773' },
-];
-
-const categoryData = [
-  { name: 'Abstract', percent: 32, revenue: 'Rs 195K' },
-  { name: 'Landscape', percent: 28, revenue: 'Rs 171K' },
-  { name: 'Calligraphy', percent: 18, revenue: 'Rs 110K' },
-  { name: 'Portrait', percent: 12, revenue: 'Rs 73K' },
-  { name: 'Miniature', percent: 10, revenue: 'Rs 61K' },
-];
-
-const topSellers = [
-  { name: 'Fatima Arts', revenue: 'Rs 284K', orders: 142, percent: 47 },
-  { name: 'Hassan Studio', revenue: 'Rs 236K', orders: 118, percent: 39 },
-  { name: 'Zara Creations', revenue: 'Rs 190K', orders: 95, percent: 31 },
-  { name: 'Ali Paintings', revenue: 'Rs 174K', orders: 87, percent: 28 },
-];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function AdminRevenue() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [tab, setTab] = useState('Overview');
+
+  useEffect(() => {
+    const fetchRevenue = async () => {
+      setLoading(true);
+      try {
+        const res = await adminAPI.getStats();
+        setStats(res.stats);
+      } catch (err) {
+        setError('Failed to load revenue data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRevenue();
+  }, []);
+
+  const formatPKR = (n) => {
+    if (!n) return 'PKR 0';
+    if (n >= 1000000) return `PKR ${(n / 1000000).toFixed(1)}M`;
+    if (n >= 1000) return `PKR ${(n / 1000).toFixed(0)}K`;
+    return `PKR ${n.toLocaleString()}`;
+  };
+
+  // Real mapped data
+  const totalRevenue = stats?.totalRevenue || 0;
+  const platformFee = totalRevenue * 0.10; // Assuming a 10% platform fee
+
+  const chartData = MONTHS.map((monthName, index) => {
+    const data = stats?.monthlyRevenue?.find(m => m._id === index + 1);
+    return {
+      name: monthName,
+      revenue: data ? data.revenue : 0,
+      orders: data ? data.orders : 0
+    };
+  });
+
+  const maxRev = Math.max(...chartData.map(d => d.revenue), 1000);
+
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex">
+      <AdminSidebar open={false} onClose={() => { }} />
+      <div className="flex-1 lg:ml-64 flex items-center justify-center">
+        <Loader className="w-10 h-10 text-red-500 animate-spin" />
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 lg:ml-64 min-w-0">
-        <AdminHeader onMenuClick={() => setSidebarOpen(true)} title="Revenue" subtitle="Financial performance" />
-        <main className="p-4 md:p-6 space-y-5">
+        <AdminHeader onMenuClick={() => setSidebarOpen(true)} title="Revenue Center" subtitle="Financials & Payouts (Real Data)" />
 
-          {/* Stat Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <main className="p-4 md:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-6">
+
+          {error && (
+            <div className="bg-red-50 text-red-600 p-4 rounded-xl flex items-center gap-2 border border-red-100">
+              <AlertCircle className="w-5 h-5" /> <p className="font-semibold text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Overview Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: 'Total Revenue', value: 'Rs 4.82M', change: '+23% YoY', icon: DollarSign, from: 'from-green-500', to: 'to-emerald-600' },
-              { label: 'Monthly Revenue', value: 'Rs 610K', change: '+18% MoM', icon: TrendingUp, from: 'from-blue-500', to: 'to-blue-600' },
-              { label: 'Total Orders', value: '3,241', change: '+8.2%', icon: ShoppingCart, from: 'from-purple-500', to: 'to-purple-600' },
-              { label: 'Avg Order Value', value: 'Rs 1,487', change: '+2.1%', icon: Users, from: 'from-orange-500', to: 'to-red-500' },
-            ].map(s => (
-              <div key={s.label} className={`bg-gradient-to-br ${s.from} ${s.to} rounded-xl p-4 text-white shadow-sm`}>
-                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center mb-3">
-                  <s.icon size={17} />
+              { label: 'Total Gross Volume', value: `PKR ${totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'bg-green-50 text-green-600' },
+              { label: 'Est. Platform Fee', value: `PKR ${platformFee.toLocaleString()}`, icon: TrendingUp, color: 'bg-blue-50 text-blue-600', sub: '(10% of Gross)' },
+              { label: 'Total Transactions', value: stats?.totalOrders || 0, icon: ShoppingCart, color: 'bg-purple-50 text-purple-600' },
+              { label: 'Avg Order Value', value: formatPKR(stats?.totalOrders ? Math.round(totalRevenue / stats.totalOrders) : 0), icon: Users, color: 'bg-orange-50 text-orange-600' },
+            ].map((m, i) => (
+              <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-start gap-4">
+                <div className={`w-12 h-12 ${m.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                  <m.icon className="w-6 h-6" />
                 </div>
-                <p className="text-xl font-bold">{s.value}</p>
-                <p className="text-white/80 text-xs mt-0.5">{s.label}</p>
-                <p className="text-white/70 text-xs mt-1">{s.change}</p>
+                <div>
+                  <p className="text-sm font-semibold text-gray-500 mb-1">{m.label}</p>
+                  <p className="text-xl font-black text-gray-900">{m.value}</p>
+                  {m.sub && <p className="text-[10px] text-gray-400 mt-1 font-bold uppercase">{m.sub}</p>}
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Tabs */}
-          <div className="flex gap-2 flex-wrap">
-            {['Overview', 'Monthly', 'By Category', 'Top Sellers'].map(t => (
-              <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${tab === t ? 'bg-red-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-                {t}
-              </button>
-            ))}
-          </div>
-
-          {/* Overview Tab */}
-          {tab === 'Overview' && (
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-              <h3 className="font-bold text-gray-900 mb-4">Revenue — All Months</h3>
-              <div className="flex items-end gap-1 md:gap-2 h-40 overflow-x-auto pb-2">
-                {revenueData.map((val, i) => (
-                  <div key={i} className="flex-1 min-w-[24px] flex flex-col items-center gap-1">
-                    <div
-                      className="w-full bg-gradient-to-t from-red-500 to-red-400 rounded-t-lg transition-all"
-                      style={{ height: `${(val / maxRev) * 120}px` }}
-                    />
-                    <span className="text-xs text-gray-400">{months[i].slice(0, 3)}</span>
-                  </div>
+          {/* Main Chart */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-lg font-bold text-gray-900">Gross Revenue (2026)</h3>
+              <div className="flex gap-2 bg-gray-50 p-1 rounded-lg border border-gray-200">
+                {['Overview', 'Monthly Breakdown'].map(t => (
+                  <button
+                    key={t} onClick={() => setTab(t)}
+                    className={`px-4 py-1.5 rounded-md text-sm font-semibold transition ${tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {t}
+                  </button>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* Monthly Tab */}
-          {tab === 'Monthly' && (
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            {tab === 'Overview' ? (
+              <div className="h-64 flex items-end gap-2 sm:gap-4 mt-8">
+                {chartData.map((d, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-2 group relative">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-10 bg-gray-900 text-white text-[11px] font-bold py-1 px-2 rounded whitespace-nowrap pointer-events-none z-10">
+                      PKR {d.revenue.toLocaleString()}
+                    </div>
+                    <div
+                      className={`w-full rounded-t-xl transition-all ${d.revenue > 0 ? 'bg-gradient-to-t from-red-500 to-red-400 hover:opacity-80 cursor-pointer' : 'bg-gray-100'}`}
+                      style={{ height: `${(d.revenue / maxRev) * 100}%`, minHeight: '4px' }}
+                    />
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{d.name}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-gray-100 bg-gray-50/50">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-gray-50 text-gray-500 font-semibold">
                     <tr>
-                      {['Month', 'Revenue', 'Orders', 'Avg Order', 'Growth'].map(h => (
-                        <th key={h} className="text-left px-5 py-3 text-xs text-gray-500 font-semibold whitespace-nowrap">{h}</th>
-                      ))}
+                      <th className="px-4 py-3 rounded-l-xl">Month</th>
+                      <th className="px-4 py-3">Gross Revenue</th>
+                      <th className="px-4 py-3">Total Orders</th>
+                      <th className="px-4 py-3 rounded-r-xl">Platform Fee (10%)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {monthlyData.map((m, i) => (
-                      <tr key={i} className="hover:bg-gray-50/50">
-                        <td className="px-5 py-3 font-medium text-gray-800">{m.month}</td>
-                        <td className="px-5 py-3 font-bold text-gray-900">{m.revenue}</td>
-                        <td className="px-5 py-3 text-gray-600">{m.orders}</td>
-                        <td className="px-5 py-3 text-gray-600">{m.avgOrder}</td>
-                        <td className="px-5 py-3">
-                          <span className={`text-xs font-bold ${m.growth.startsWith('+') ? 'text-green-600' : 'text-red-500'}`}>{m.growth}</span>
-                        </td>
+                    {chartData.filter(d => d.revenue > 0 || d.orders > 0).map((d, i) => (
+                      <tr key={i} className="hover:bg-gray-50 transition">
+                        <td className="px-4 py-3 font-bold text-gray-900">{d.name} 2026</td>
+                        <td className="px-4 py-3 font-semibold text-green-600">PKR {d.revenue.toLocaleString()}</td>
+                        <td className="px-4 py-3 font-bold text-gray-600">{d.orders}</td>
+                        <td className="px-4 py-3 font-bold text-blue-600">PKR {(d.revenue * 0.1).toLocaleString()}</td>
                       </tr>
                     ))}
+                    {chartData.filter(d => d.revenue > 0).length === 0 && (
+                      <tr><td colSpan="4" className="text-center py-8 text-gray-400">No revenue generated yet this year.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
-
-          {/* By Category Tab */}
-          {tab === 'By Category' && (
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-              <h3 className="font-bold text-gray-900">Revenue by Category</h3>
-              {categoryData.map(c => (
-                <div key={c.name}>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <span className="text-sm font-medium text-gray-700">{c.name}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-gray-900">{c.revenue}</span>
-                      <span className="text-xs text-gray-400 w-8 text-right">{c.percent}%</span>
-                    </div>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full transition-all" style={{ width: `${c.percent}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Top Sellers Tab */}
-          {tab === 'Top Sellers' && (
-            <div className="space-y-3">
-              {topSellers.map((s, i) => (
-                <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-4">
-                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                    {i + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-gray-900 text-sm">{s.name}</p>
-                    <p className="text-xs text-gray-500">{s.orders} orders</p>
-                    <div className="h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-purple-400 to-pink-500 rounded-full" style={{ width: `${s.percent}%` }} />
-                    </div>
-                  </div>
-                  <p className="font-bold text-gray-900 text-sm flex-shrink-0">{s.revenue}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
+            )}
+          </div>
         </main>
       </div>
     </div>

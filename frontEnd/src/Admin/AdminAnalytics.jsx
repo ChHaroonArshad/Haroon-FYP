@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminSidebar from './AdminSidebar';
-import AdminHeader  from './AdminHeader';
+import AdminHeader from './AdminHeader';
 import {
   Users, TrendingUp, ShoppingCart,
   DollarSign, Eye, Star, Package,
@@ -8,16 +8,16 @@ import {
 } from 'lucide-react';
 import { adminAPI } from '../services/api';
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function AdminAnalytics() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [stats,       setStats]       = useState(null);
-  const [orders,      setOrders]      = useState([]);
-  const [artworks,    setArtworks]    = useState([]);
-  const [users,       setUsers]       = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState('');
+  const [stats, setStats] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [artworks, setArtworks] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -26,14 +26,14 @@ export default function AdminAnalytics() {
       try {
         const [statsData, ordersData, artworksData, usersData] = await Promise.all([
           adminAPI.getStats(),
-          adminAPI.getOrders({ limit: 200 }),
-          adminAPI.getArtworks({ limit: 200 }),
-          adminAPI.getUsers({ limit: 200 }),
+          adminAPI.getOrders({ limit: 500 }),
+          adminAPI.getArtworks({ limit: 500 }),
+          adminAPI.getUsers({ limit: 500 }),
         ]);
         setStats(statsData.stats);
-        setOrders(ordersData.orders   || []);
+        setOrders(ordersData.orders || []);
         setArtworks(artworksData.artworks || []);
-        setUsers(usersData.users     || []);
+        setUsers(usersData.users || []);
       } catch (err) {
         setError('Failed to load analytics: ' + err.message);
       } finally {
@@ -46,7 +46,7 @@ export default function AdminAnalytics() {
   const formatPKR = (n) => {
     if (!n) return 'PKR 0';
     if (n >= 1000000) return `PKR ${(n / 1000000).toFixed(1)}M`;
-    if (n >= 1000)    return `PKR ${(n / 1000).toFixed(0)}K`;
+    if (n >= 1000) return `PKR ${(n / 1000).toFixed(0)}K`;
     return `PKR ${n}`;
   };
 
@@ -93,17 +93,17 @@ export default function AdminAnalytics() {
   });
 
   const PAYMENT_LABELS = {
-    cod:       'Cash on Delivery',
+    cod: 'Cash on Delivery',
     easypaisa: 'Easypaisa',
-    jazzcash:  'JazzCash',
-    bank:      'Bank Transfer',
+    jazzcash: 'JazzCash',
+    bank: 'Bank Transfer',
   };
 
   const totalRev = stats?.totalRevenue || 0;
 
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex">
-      <AdminSidebar open={false} onClose={() => {}} />
+      <AdminSidebar open={false} onClose={() => { }} />
       <div className="flex-1 lg:ml-64 flex items-center justify-center">
         <div className="text-center">
           <Loader className="w-10 h-10 text-red-500 animate-spin mx-auto mb-3" />
@@ -115,7 +115,7 @@ export default function AdminAnalytics() {
 
   if (error) return (
     <div className="min-h-screen bg-gray-50 flex">
-      <AdminSidebar open={false} onClose={() => {}} />
+      <AdminSidebar open={false} onClose={() => { }} />
       <div className="flex-1 lg:ml-64 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
@@ -126,12 +126,12 @@ export default function AdminAnalytics() {
   );
 
   const metrics = [
-    { label: 'Total Users',    value: stats?.totalUsers    || 0,        icon: Users,       color: 'text-blue-600 bg-blue-50'   },
-    { label: 'Total Artworks', value: stats?.totalArtworks || 0,        icon: Package,     color: 'text-purple-600 bg-purple-50'},
-    { label: 'Total Orders',   value: stats?.totalOrders   || 0,        icon: ShoppingCart,color: 'text-green-600 bg-green-50' },
-    { label: 'Total Revenue',  value: formatPKR(totalRev),              icon: DollarSign,  color: 'text-red-600 bg-red-50'     },
-    { label: 'Total Buyers',   value: stats?.totalBuyers   || 0,        icon: Users,       color: 'text-cyan-600 bg-cyan-50'   },
-    { label: 'Total Artists',  value: stats?.totalArtists  || 0,        icon: Star,        color: 'text-amber-600 bg-amber-50' },
+    { label: 'Total Users', value: stats?.totalUsers || 0, icon: Users, color: 'text-blue-600 bg-blue-50' },
+    { label: 'Total Artworks', value: stats?.totalArtworks || 0, icon: Package, color: 'text-purple-600 bg-purple-50' },
+    { label: 'Total Orders', value: stats?.totalOrders || 0, icon: ShoppingCart, color: 'text-green-600 bg-green-50' },
+    { label: 'Total Revenue', value: formatPKR(totalRev), icon: DollarSign, color: 'text-red-600 bg-red-50' },
+    { label: 'Total Buyers', value: stats?.totalBuyers || 0, icon: Users, color: 'text-cyan-600 bg-cyan-50' },
+    { label: 'Total Artists', value: stats?.totalArtists || 0, icon: Star, color: 'text-amber-600 bg-amber-50' },
   ];
 
   return (
@@ -143,7 +143,7 @@ export default function AdminAnalytics() {
           title="Analytics"
           subtitle="Real platform performance — MongoDB data"
         />
-        <main className="p-4 md:p-6 space-y-5">
+        <main className="p-4 md:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-5">
 
           {/* Metrics */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -177,7 +177,7 @@ export default function AdminAnalytics() {
                     <div
                       className="w-full bg-gradient-to-t from-slate-700 to-slate-500 rounded-t-lg transition-all"
                       style={{
-                        height:    `${(u.count / maxGrowth) * 100}px`,
+                        height: `${(u.count / maxGrowth) * 100}px`,
                         minHeight: '4px',
                       }}
                     />
@@ -228,11 +228,11 @@ export default function AdminAnalytics() {
                 <div className="space-y-3">
                   {Object.entries(statusMap).map(([status, count]) => {
                     const colors = {
-                      pending:     'from-amber-400 to-amber-500',
-                      confirmed:   'from-blue-400 to-blue-500',
-                      'in-transit':'from-purple-400 to-purple-500',
-                      delivered:   'from-green-400 to-green-500',
-                      cancelled:   'from-red-400 to-red-500',
+                      pending: 'from-amber-400 to-amber-500',
+                      confirmed: 'from-blue-400 to-blue-500',
+                      'in-transit': 'from-purple-400 to-purple-500',
+                      delivered: 'from-green-400 to-green-500',
+                      cancelled: 'from-red-400 to-red-500',
                     };
                     const pct = orders.length ? Math.round((count / orders.length) * 100) : 0;
                     return (
@@ -290,7 +290,7 @@ export default function AdminAnalytics() {
                     ? `${((stats.totalOrders / stats.totalUsers) * 100).toFixed(1)}%`
                     : '0%',
                   color: 'text-green-600',
-                  desc:  'Orders per user',
+                  desc: 'Orders per user',
                 },
                 {
                   label: 'Avg Revenue / Artist',
@@ -298,13 +298,13 @@ export default function AdminAnalytics() {
                     ? formatPKR(Math.round(totalRev / stats.totalArtists))
                     : 'PKR 0',
                   color: 'text-purple-600',
-                  desc:  'Revenue per seller',
+                  desc: 'Revenue per seller',
                 },
                 {
                   label: 'Sold Artworks',
                   value: artworks.filter(a => !a.isAvailable).length,
                   color: 'text-blue-600',
-                  desc:  `Out of ${artworks.length} total`,
+                  desc: `Out of ${artworks.length} total`,
                 },
               ].map(p => (
                 <div key={p.label} className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">

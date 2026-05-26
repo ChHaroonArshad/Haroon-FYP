@@ -10,66 +10,63 @@ import { messageAPI } from '../services/api';
 
 const SellerSidebar = ({ open, onClose }) => {
   const location = useLocation();
-  const navigate  = useNavigate();
-  const user      = useUser();
+  const navigate = useNavigate();
+  const user = useUser();
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // const handleLogout = () => {
-  //   localStorage.removeItem('token');
-  //   localStorage.removeItem('user');
-  //   navigate('/login');
-  // };
   const handleLogout = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  localStorage.removeItem('viewMode');
-  navigate('/');
-};
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('viewMode');
+    navigate('/');
+  };
 
   const handleSwitchMode = () => {
     localStorage.setItem('viewMode', 'buyer');
     navigate('/buyer/home');
   };
 
-  // Fetch real unread count
+  // Fix for Issue #7: Real-time unread message polling
   useEffect(() => {
     const fetchUnread = async () => {
       try {
-        const data  = await messageAPI.getConversations();
+        const data = await messageAPI.getConversations();
         const total = (data.conversations || []).reduce(
           (sum, c) => sum + (c.sellerUnread || 0), 0
         );
         setUnreadCount(total);
       } catch (err) {
-        // silently fail
+        // Silently fail to avoid console spam during token expiry
       }
     };
 
     const token = localStorage.getItem('token');
     if (token) {
-      fetchUnread();
-      const interval = setInterval(fetchUnread, 10000);
-      return () => clearInterval(interval);
+      fetchUnread(); // Fetch immediately on mount
+      // Poll every 10 seconds
+      const intervalId = setInterval(fetchUnread, 10000);
+      // Crucial: Clear interval on unmount
+      return () => clearInterval(intervalId);
     }
   }, []);
 
   const navItems = [
-    { icon: Home,          label: 'Dashboard',       to: '/seller/home'            },
-    { icon: Compass,       label: 'Explore Market',  to: '/seller/explore'         },
-    { icon: Upload,        label: 'Upload Artwork',  to: '/seller/upload'          },
-    { icon: Palette,       label: 'My Artworks',     to: '/seller/dashboard'       },
-    { icon: ShoppingBag,   label: 'Orders',          to: '/seller/orders'          },
-    { icon: Users,         label: 'Custom Requests', to: '/seller/custom-requests' },
-    { icon: MessageSquare, label: 'Messages',        to: '/seller/chat', badge: unreadCount },
-    { icon: Video,         label: 'Live Studio',     to: '/seller/live-studio'     },
-    { icon: DollarSign,    label: 'Earnings',        to: '/seller/earnings'        },
-    { icon: BarChart2,     label: 'Sales History',   to: '/seller/sales'           },
-    { icon: Star,          label: 'Reviews',         to: '/seller/reviews'         },
-    { icon: Bell,          label: 'Notifications',   to: '/seller/notifications'   },
-    { icon: Settings,      label: 'Profile',         to: '/seller/profile'         },
+    { icon: Home, label: 'Dashboard', to: '/seller/home' },
+    { icon: Compass, label: 'Explore Market', to: '/seller/explore' },
+    { icon: Upload, label: 'Upload Artwork', to: '/seller/upload' },
+    { icon: Palette, label: 'My Artworks', to: '/seller/dashboard' },
+    { icon: ShoppingBag, label: 'Orders', to: '/seller/orders' },
+    { icon: Users, label: 'Custom Requests', to: '/seller/custom-requests' },
+    { icon: MessageSquare, label: 'Messages', to: '/seller/chat', badge: unreadCount },
+    { icon: Video, label: 'Live Studio', to: '/seller/live-studio' },
+    { icon: DollarSign, label: 'Earnings', to: '/seller/earnings' },
+    { icon: BarChart2, label: 'Sales History', to: '/seller/sales' },
+    { icon: Star, label: 'Reviews', to: '/seller/reviews' },
+    { icon: Bell, label: 'Notifications', to: '/seller/notifications' },
+    { icon: Settings, label: 'Profile', to: '/seller/profile' },
   ];
 
-  const isActive  = (to) => location.pathname === to;
+  const isActive = (to) => location.pathname === to;
   const avatarUrl = getImageUrl(user.avatar);
 
   return (
@@ -135,16 +132,15 @@ const SellerSidebar = ({ open, onClose }) => {
                 <Link
                   to={item.to}
                   onClick={onClose}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    isActive(item.to)
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive(item.to)
                       ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
                       : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-700'
-                  }`}
+                    }`}
                 >
                   <item.icon className="w-5 h-5 flex-shrink-0" />
                   <span className="flex-1">{item.label}</span>
                   {item.badge > 0 && (
-                    <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                    <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-sm animate-pulse">
                       {item.badge > 9 ? '9+' : item.badge}
                     </span>
                   )}

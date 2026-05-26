@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminSidebar from './AdminSidebar';
-import AdminHeader  from './AdminHeader';
+import AdminHeader from './AdminHeader';
 import {
   Flag, AlertTriangle, CheckCircle, Clock,
   X, Loader, Star, Package, XCircle,
@@ -10,17 +10,17 @@ import { adminAPI, reviewAPI } from '../services/api';
 import { getImageUrl } from '../hooks/useUser';
 
 export default function AdminReports() {
-  const [sidebarOpen,  setSidebarOpen]  = useState(false);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState('');
-  const [activeTab,    setActiveTab]    = useState('low-rated');
-  const [selected,     setSelected]     = useState(null);
-  const [deletingId,   setDeletingId]   = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('low-rated');
+  const [selected, setSelected] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   // Real data
-  const [lowRatedArtworks,  setLowRatedArtworks]  = useState([]);
-  const [cancelledOrders,   setCancelledOrders]   = useState([]);
-  const [allReviews,        setAllReviews]        = useState([]);
+  const [lowRatedArtworks, setLowRatedArtworks] = useState([]);
+  const [cancelledOrders, setCancelledOrders] = useState([]);
+  const [allReviews, setAllReviews] = useState([]);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -28,8 +28,8 @@ export default function AdminReports() {
       setError('');
       try {
         const [artworksData, ordersData, reviewsData] = await Promise.all([
-          adminAPI.getArtworks({ limit: 200 }),
-          adminAPI.getOrders({ status: 'cancelled', limit: 100 }),
+          adminAPI.getArtworks({ limit: 500 }),
+          adminAPI.getOrders({ status: 'cancelled', limit: 200 }),
           reviewAPI.getAll(),
         ]);
 
@@ -73,31 +73,31 @@ export default function AdminReports() {
 
   const tabs = [
     {
-      id:    'low-rated',
+      id: 'low-rated',
       label: 'Low Rated Artworks',
       count: lowRatedArtworks.length,
-      icon:  Star,
+      icon: Star,
       color: 'text-yellow-500',
     },
     {
-      id:    'cancelled',
+      id: 'cancelled',
       label: 'Cancelled Orders',
       count: cancelledOrders.length,
-      icon:  XCircle,
+      icon: XCircle,
       color: 'text-red-500',
     },
     {
-      id:    'reviews',
+      id: 'reviews',
       label: 'All Reviews',
       count: allReviews.length,
-      icon:  Flag,
+      icon: Flag,
       color: 'text-blue-500',
     },
   ];
 
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex">
-      <AdminSidebar open={false} onClose={() => {}} />
+      <AdminSidebar open={false} onClose={() => { }} />
       <div className="flex-1 lg:ml-64 flex items-center justify-center">
         <div className="text-center">
           <Loader className="w-10 h-10 text-red-500 animate-spin mx-auto mb-3" />
@@ -109,7 +109,7 @@ export default function AdminReports() {
 
   if (error) return (
     <div className="min-h-screen bg-gray-50 flex">
-      <AdminSidebar open={false} onClose={() => {}} />
+      <AdminSidebar open={false} onClose={() => { }} />
       <div className="flex-1 lg:ml-64 flex items-center justify-center">
         <div className="text-center">
           <AlertTriangle className="w-10 h-10 text-red-400 mx-auto mb-3" />
@@ -128,7 +128,7 @@ export default function AdminReports() {
           title="Reports"
           subtitle="Real platform data — issues & insights"
         />
-        <main className="p-4 md:p-6 space-y-5">
+        <main className="p-4 md:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-5">
 
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -136,30 +136,30 @@ export default function AdminReports() {
               {
                 label: 'Low Rated',
                 value: lowRatedArtworks.length,
-                icon:  Star,
-                cls:   'text-yellow-500',
-                bg:    'bg-yellow-50',
+                icon: Star,
+                cls: 'text-yellow-500',
+                bg: 'bg-yellow-50',
               },
               {
                 label: 'Cancelled Orders',
                 value: cancelledOrders.length,
-                icon:  XCircle,
-                cls:   'text-red-500',
-                bg:    'bg-red-50',
+                icon: XCircle,
+                cls: 'text-red-500',
+                bg: 'bg-red-50',
               },
               {
                 label: 'Total Reviews',
                 value: allReviews.length,
-                icon:  Flag,
-                cls:   'text-blue-500',
-                bg:    'bg-blue-50',
+                icon: Flag,
+                cls: 'text-blue-500',
+                bg: 'bg-blue-50',
               },
               {
                 label: '1-2 Star Reviews',
                 value: allReviews.filter(r => r.rating <= 2).length,
-                icon:  AlertTriangle,
-                cls:   'text-orange-500',
-                bg:    'bg-orange-50',
+                icon: AlertTriangle,
+                cls: 'text-orange-500',
+                bg: 'bg-orange-50',
               },
             ].map(s => (
               <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
@@ -180,18 +180,16 @@ export default function AdminReports() {
               <button
                 key={t.id}
                 onClick={() => setActiveTab(t.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
-                  activeTab === t.id
-                    ? 'bg-red-500 text-white shadow-sm'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${activeTab === t.id
+                  ? 'bg-red-500 text-white shadow-sm'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
               >
                 <t.icon size={14} />
                 {t.label}
                 {t.count > 0 && (
-                  <span className={`px-1.5 py-0.5 rounded-lg text-xs font-bold ${
-                    activeTab === t.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
-                  }`}>
+                  <span className={`px-1.5 py-0.5 rounded-lg text-xs font-bold ${activeTab === t.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                    }`}>
                     {t.count}
                   </span>
                 )}
@@ -321,9 +319,8 @@ export default function AdminReports() {
                 {allReviews.map(review => (
                   <div
                     key={review._id}
-                    className={`bg-white rounded-xl border shadow-sm p-4 ${
-                      review.rating <= 2 ? 'border-red-200 bg-red-50/30' : 'border-gray-100'
-                    }`}
+                    className={`bg-white rounded-xl border shadow-sm p-4 ${review.rating <= 2 ? 'border-red-200 bg-red-50/30' : 'border-gray-100'
+                      }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 flex-shrink-0">
@@ -333,7 +330,7 @@ export default function AdminReports() {
                         <div>
                           <p className="font-bold text-gray-900 text-sm">{review.buyerName}</p>
                           <div className="flex gap-0.5 mt-0.5">
-                            {[1,2,3,4,5].map(s => (
+                            {[1, 2, 3, 4, 5].map(s => (
                               <Star
                                 key={s}
                                 size={12}
@@ -352,13 +349,12 @@ export default function AdminReports() {
                         </p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <span className={`text-xs px-2 py-1 rounded-lg font-bold ${
-                          review.rating >= 4
-                            ? 'bg-green-100 text-green-700'
-                            : review.rating === 3
+                        <span className={`text-xs px-2 py-1 rounded-lg font-bold ${review.rating >= 4
+                          ? 'bg-green-100 text-green-700'
+                          : review.rating === 3
                             ? 'bg-yellow-100 text-yellow-700'
                             : 'bg-red-100 text-red-700'
-                        }`}>
+                          }`}>
                           {review.rating}★
                         </span>
                         <p className="text-xs text-gray-400 mt-1">
@@ -413,7 +409,7 @@ export default function AdminReports() {
 
                 <div className="flex items-center gap-2 mb-3">
                   <div className="flex gap-0.5">
-                    {[1,2,3,4,5].map(s => (
+                    {[1, 2, 3, 4, 5].map(s => (
                       <Star
                         key={s}
                         size={14}
@@ -431,12 +427,12 @@ export default function AdminReports() {
 
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   {[
-                    ['Category',   selected.data.category],
-                    ['Price',      `PKR ${selected.data.price?.toLocaleString()}`],
-                    ['Status',     selected.data.isAvailable ? 'Available' : 'Sold'],
-                    ['Views',      selected.data.views || 0],
-                    ['Sales',      selected.data.sales || 0],
-                    ['Listed',     formatDate(selected.data.createdAt)],
+                    ['Category', selected.data.category],
+                    ['Price', `PKR ${selected.data.price?.toLocaleString()}`],
+                    ['Status', selected.data.isAvailable ? 'Available' : 'Sold'],
+                    ['Views', selected.data.views || 0],
+                    ['Sales', selected.data.sales || 0],
+                    ['Listed', formatDate(selected.data.createdAt)],
                   ].map(([l, v]) => (
                     <div key={l} className="bg-gray-50 rounded-xl p-2.5">
                       <p className="text-xs text-gray-400">{l}</p>

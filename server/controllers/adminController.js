@@ -1,26 +1,36 @@
-const User         = require('../models/User');
-const Artwork      = require('../models/Artwork');
-const Order        = require('../models/Order');
+const User = require('../models/User');
+const Artwork = require('../models/Artwork');
+const Order = require('../models/Order');
 const Notification = require('../models/Notification');
 
 // GET /api/admin/stats
 const getStats = async (req, res) => {
   try {
-    const totalUsers         = await User.countDocuments();
-    const totalBuyers        = await User.countDocuments({ role: 'buyer' });
-    const totalArtists       = await User.countDocuments({ role: 'artist' });
-    const totalArtworks      = await Artwork.countDocuments();
-    const pendingApproval    = await Artwork.countDocuments({ approvalStatus: 'pending' });
-    const pendingAuth        = await Artwork.countDocuments({ approvalStatus: 'approved', authenticationStatus: 'unverified' });
-    const totalOrders        = await Order.countDocuments();
-    const pendingOrders      = await Order.countDocuments({ status: 'pending' });
-    const deliveredOrders    = await Order.countDocuments({ status: 'delivered' });
-    const revenueResult      = await Order.aggregate([{ $group: { _id: null, total: { $sum: '$totalAmount' } } }]);
-    const totalRevenue       = revenueResult[0]?.total || 0;
-    const monthlyRevenue     = await Order.aggregate([
+    const totalUsers = await User.countDocuments();
+    const totalBuyers = await User.countDocuments({ role: 'buyer' });
+    const totalArtists = await User.countDocuments({ role: 'artist' });
+    const totalArtworks = await Artwork.countDocuments();
+    const pendingApproval = await Artwork.countDocuments({ approvalStatus: 'pending' });
+    const pendingAuth = await Artwork.countDocuments({ approvalStatus: 'approved', authenticationStatus: 'unverified' });
+
+    const totalOrders = await Order.countDocuments();
+    const pendingOrders = await Order.countDocuments({ status: 'pending' });
+    const deliveredOrders = await Order.countDocuments({ status: 'delivered' });
+
+    // BUG FIX: Exclude cancelled orders from revenue
+    const revenueResult = await Order.aggregate([
+      { $match: { status: { $ne: 'cancelled' } } },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+    const totalRevenue = revenueResult[0]?.total || 0;
+
+    // BUG FIX: Real monthly revenue grouped accurately
+    const monthlyRevenue = await Order.aggregate([
+      { $match: { status: { $ne: 'cancelled' } } },
       { $group: { _id: { $month: '$createdAt' }, revenue: { $sum: '$totalAmount' }, orders: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ]);
+
     return res.status(200).json({
       success: true,
       stats: { totalUsers, totalBuyers, totalArtists, totalArtworks, pendingApproval, pendingAuth, totalOrders, pendingOrders, deliveredOrders, totalRevenue, monthlyRevenue },
@@ -38,7 +48,7 @@ const getUsers = async (req, res) => {
     if (role && role !== 'all') query.role = role;
     if (search) query.$or = [{ fullName: { $regex: search, $options: 'i' } }, { email: { $regex: search, $options: 'i' } }];
     const users = await User.find(query).select('-password').sort({ createdAt: -1 })
-      .skip((Number(page)-1)*Number(limit)).limit(Number(limit));
+      .skip((Number(page) - 1) * Number(limit)).limit(Number(limit));
     const total = await User.countDocuments(query);
     return res.status(200).json({ success: true, users, total });
   } catch (error) {
@@ -72,14 +82,14 @@ const getArtworks = async (req, res) => {
     if (search) query.$or = [{ title: { $regex: search, $options: 'i' } }, { artistName: { $regex: search, $options: 'i' } }];
 
     const artworks = await Artwork.find(query).sort({ createdAt: -1 })
-      .skip((Number(page)-1)*Number(limit)).limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit)).limit(Number(limit))
       .populate('artist', 'fullName email avatar');
-    const total         = await Artwork.countDocuments(query);
-    const pendingCount  = await Artwork.countDocuments({ approvalStatus: 'pending' });
+    const total = await Artwork.countDocuments(query);
+    const pendingCount = await Artwork.countDocuments({ approvalStatus: 'pending' });
     const approvedCount = await Artwork.countDocuments({ approvalStatus: 'approved' });
     const rejectedCount = await Artwork.countDocuments({ approvalStatus: 'rejected' });
     const unverifiedCount = await Artwork.countDocuments({ approvalStatus: 'approved', authenticationStatus: 'unverified' });
-    const verifiedCount   = await Artwork.countDocuments({ authenticationStatus: 'verified' });
+    const verifiedCount = await Artwork.countDocuments({ authenticationStatus: 'verified' });
     return res.status(200).json({ success: true, artworks, total, pendingCount, approvedCount, rejectedCount, unverifiedCount, verifiedCount });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
@@ -94,12 +104,12 @@ const approveArtwork = async (req, res) => {
     if (!artwork) return res.status(404).json({ success: false, message: 'Artwork not found' });
 
     if (action === 'approve') {
-      artwork.isApproved      = true;
-      artwork.approvalStatus  = 'approved';
+      artwork.isApproved = true;
+      artwork.approvalStatus = 'approved';
       artwork.rejectionReason = '';
     } else if (action === 'reject') {
-      artwork.isApproved      = false;
-      artwork.approvalStatus  = 'rejected';
+      artwork.isApproved = false;
+      artwork.approvalStatus = 'rejected';
       artwork.rejectionReason = reason || 'Does not meet platform guidelines';
     } else {
       return res.status(400).json({ success: false, message: 'Invalid action' });
@@ -110,14 +120,14 @@ const approveArtwork = async (req, res) => {
     try {
       await Notification.create({
         recipient: artwork.artist,
-        type:    action === 'approve' ? 'artwork_approved' : 'artwork_rejected',
-        title:   action === 'approve' ? '🎉 Artwork Approved!' : '❌ Artwork Rejected',
+        type: action === 'approve' ? 'artwork_approved' : 'artwork_rejected',
+        title: action === 'approve' ? '🎉 Artwork Approved!' : '❌ Artwork Rejected',
         message: action === 'approve'
           ? `Your artwork "${artwork.title}" is now live on the marketplace!`
           : `Your artwork "${artwork.title}" was rejected. Reason: ${artwork.rejectionReason}`,
         link: '/seller/dashboard',
       });
-    } catch (_) {}
+    } catch (_) { }
 
     return res.status(200).json({ success: true, message: `Artwork ${action}d successfully`, artwork });
   } catch (error) {
@@ -133,19 +143,19 @@ const authenticateArtwork = async (req, res) => {
     if (!artwork) return res.status(404).json({ success: false, message: 'Artwork not found' });
 
     artwork.authenticationStatus = action;
-    artwork.authenticationNote   = note || '';
-    artwork.isAuthenticated      = action === 'verified';
+    artwork.authenticationNote = note || '';
+    artwork.isAuthenticated = action === 'verified';
     await artwork.save();
 
     try {
       const msgs = {
-        verified:   { title: '✅ Artwork Verified!',    msg: `Your artwork "${artwork.title}" has been verified as authentic by ArtBazaar!` },
+        verified: { title: '✅ Artwork Verified!', msg: `Your artwork "${artwork.title}" has been verified as authentic by ArtBazaar!` },
         suspicious: { title: '⚠️ Authentication Issue', msg: `Your artwork "${artwork.title}" flagged for review. Note: ${note}` },
-        rejected:   { title: '❌ Authentication Failed', msg: `Your artwork "${artwork.title}" failed authentication. Note: ${note}` },
+        rejected: { title: '❌ Authentication Failed', msg: `Your artwork "${artwork.title}" failed authentication. Note: ${note}` },
       };
       const m = msgs[action];
       if (m) await Notification.create({ recipient: artwork.artist, type: 'artwork_auth', title: m.title, message: m.msg, link: '/seller/dashboard' });
-    } catch (_) {}
+    } catch (_) { }
 
     return res.status(200).json({ success: true, message: `Artwork marked as ${action}`, artwork });
   } catch (error) {
@@ -177,11 +187,11 @@ const getOrders = async (req, res) => {
     if (status && status !== 'all') query.status = status;
     if (search) query.$or = [
       { artworkTitle: { $regex: search, $options: 'i' } },
-      { buyerName:    { $regex: search, $options: 'i' } },
-      { orderNumber:  { $regex: search, $options: 'i' } },
+      { buyerName: { $regex: search, $options: 'i' } },
+      { orderNumber: { $regex: search, $options: 'i' } },
     ];
-    const orders = await Order.find(query).sort({ createdAt: -1 }).skip((Number(page)-1)*Number(limit)).limit(Number(limit));
-    const total  = await Order.countDocuments(query);
+    const orders = await Order.find(query).sort({ createdAt: -1 }).skip((Number(page) - 1) * Number(limit)).limit(Number(limit));
+    const total = await Order.countDocuments(query);
     return res.status(200).json({ success: true, orders, total });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Server error: ' + error.message });
@@ -202,8 +212,8 @@ const updateOrderStatus = async (req, res) => {
 // GET /api/admin/recent
 const getRecentActivity = async (req, res) => {
   try {
-    const recentUsers    = await User.find().sort({ createdAt: -1 }).limit(5).select('fullName email role createdAt');
-    const recentOrders   = await Order.find().sort({ createdAt: -1 }).limit(5);
+    const recentUsers = await User.find().sort({ createdAt: -1 }).limit(5).select('fullName email role createdAt');
+    const recentOrders = await Order.find().sort({ createdAt: -1 }).limit(5);
     const recentArtworks = await Artwork.find().sort({ createdAt: -1 }).limit(5).select('title artistName createdAt image approvalStatus authenticationStatus');
     return res.status(200).json({ success: true, recentUsers, recentOrders, recentArtworks });
   } catch (error) {

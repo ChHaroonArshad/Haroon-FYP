@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminSidebar from './AdminSidebar';
-import AdminHeader  from './AdminHeader';
+import AdminHeader from './AdminHeader';
 import {
   Users, DollarSign, Package, TrendingUp,
   ShoppingCart, Loader, Clock, CheckCircle
@@ -9,13 +9,13 @@ import {
 import { adminAPI } from '../services/api';
 import { getImageUrl } from '../hooks/useUser';
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [stats,       setStats]       = useState(null);
-  const [recent,      setRecent]      = useState(null);
-  const [loading,     setLoading]     = useState(true);
+  const [stats, setStats] = useState(null);
+  const [recent, setRecent] = useState(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,20 +39,28 @@ export default function AdminDashboard() {
 
   const formatPKR = (n) => {
     if (n >= 1000000) return `PKR ${(n / 1000000).toFixed(1)}M`;
-    if (n >= 1000)    return `PKR ${(n / 1000).toFixed(0)}K`;
+    if (n >= 1000) return `PKR ${(n / 1000).toFixed(0)}K`;
     return `PKR ${n}`;
   };
 
   const formatDate = (d) =>
     new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
 
-  const maxRevenue = stats?.monthlyRevenue?.length
-    ? Math.max(...stats.monthlyRevenue.map(m => m.revenue))
-    : 1;
+  // BUG FIX: Map real MongoDB data to all 12 months for a beautiful UI
+  const chartData = MONTHS.map((monthName, index) => {
+    const monthData = stats?.monthlyRevenue?.find(m => m._id === index + 1);
+    return {
+      name: monthName,
+      revenue: monthData ? monthData.revenue : 0,
+      orders: monthData ? monthData.orders : 0
+    };
+  });
+
+  const maxRevenue = Math.max(...chartData.map(d => d.revenue), 1000); // Floor of 1000 to prevent zero division
 
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex">
-      <AdminSidebar open={false} onClose={() => {}} />
+      <AdminSidebar open={false} onClose={() => { }} />
       <div className="flex-1 lg:ml-64 flex items-center justify-center">
         <div className="text-center">
           <Loader className="w-10 h-10 text-red-500 animate-spin mx-auto mb-3" />
@@ -63,10 +71,10 @@ export default function AdminDashboard() {
   );
 
   const statCards = [
-    { label: 'Total Users',    value: stats?.totalUsers    || 0, sub: `${stats?.totalBuyers || 0} buyers · ${stats?.totalArtists || 0} artists`, icon: Users,        color: 'from-blue-500 to-blue-600'      },
-    { label: 'Total Revenue',  value: formatPKR(stats?.totalRevenue || 0), sub: 'All time',                                                        icon: DollarSign,   color: 'from-green-500 to-emerald-600'  },
-    { label: 'Total Artworks', value: stats?.totalArtworks || 0, sub: 'Listed on platform',                                                        icon: Package,      color: 'from-purple-500 to-purple-600'  },
-    { label: 'Total Orders',   value: stats?.totalOrders   || 0, sub: `${stats?.pendingOrders || 0} pending`,                                       icon: ShoppingCart, color: 'from-orange-500 to-red-500'     },
+    { label: 'Total Users', value: stats?.totalUsers || 0, sub: `${stats?.totalBuyers || 0} buyers · ${stats?.totalArtists || 0} artists`, icon: Users, color: 'from-blue-500 to-blue-600' },
+    { label: 'Total Revenue', value: formatPKR(stats?.totalRevenue || 0), sub: 'All time', icon: DollarSign, color: 'from-green-500 to-emerald-600' },
+    { label: 'Total Artworks', value: stats?.totalArtworks || 0, sub: 'Listed on platform', icon: Package, color: 'from-purple-500 to-purple-600' },
+    { label: 'Total Orders', value: stats?.totalOrders || 0, sub: `${stats?.pendingOrders || 0} pending`, icon: ShoppingCart, color: 'from-orange-500 to-red-500' },
   ];
 
   return (
@@ -94,33 +102,27 @@ export default function AdminDashboard() {
             ))}
           </div>
 
-          {/* Revenue Chart — real MongoDB data */}
+          {/* Revenue Chart — mapped to all 12 months */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
             <h3 className="font-bold text-gray-900 mb-4">
-              Monthly Revenue — Real Data
+              Monthly Revenue — 2026
             </h3>
-            {stats?.monthlyRevenue?.length > 0 ? (
-              <div className="flex items-end gap-2 h-40">
-                {stats.monthlyRevenue.map((m, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                    <span className="text-xs text-gray-500">
-                      {(m.revenue / 1000).toFixed(0)}K
-                    </span>
-                    <div
-                      className="w-full bg-gradient-to-t from-red-500 to-red-400 rounded-t-lg transition-all"
-                      style={{ height: `${(m.revenue / maxRevenue) * 120}px`, minHeight: '4px' }}
-                    />
-                    <span className="text-xs text-gray-400">
-                      {MONTHS[(m._id - 1) % 12]}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="h-40 flex items-center justify-center text-gray-400 text-sm">
-                No revenue data yet — place some orders first
-              </div>
-            )}
+            <div className="flex items-end gap-2 h-40">
+              {chartData.map((m, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
+                  <span className="text-[10px] text-gray-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute -top-5">
+                    {m.revenue > 0 ? `PKR ${(m.revenue / 1000).toFixed(0)}K` : ''}
+                  </span>
+                  <div
+                    className={`w-full rounded-t-md transition-all ${m.revenue > 0 ? 'bg-gradient-to-t from-red-500 to-red-400' : 'bg-gray-100'}`}
+                    style={{ height: `${(m.revenue / maxRevenue) * 120}px`, minHeight: '4px' }}
+                  />
+                  <span className="text-[10px] text-gray-400 font-bold uppercase mt-1">
+                    {m.name}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Recent Users & Orders */}
@@ -151,13 +153,12 @@ export default function AdminDashboard() {
                         <p className="text-xs text-gray-400 truncate">{u.email}</p>
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          u.role === 'artist'
-                            ? 'bg-purple-100 text-purple-700'
-                            : u.role === 'admin'
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${u.role === 'artist'
+                          ? 'bg-purple-100 text-purple-700'
+                          : u.role === 'admin'
                             ? 'bg-red-100 text-red-700'
                             : 'bg-blue-100 text-blue-700'
-                        }`}>
+                          }`}>
                           {u.role}
                         </span>
                         <span className="text-xs text-gray-400">{formatDate(u.createdAt)}</span>
@@ -201,13 +202,12 @@ export default function AdminDashboard() {
                         <span className="text-sm font-bold text-gray-900">
                           PKR {o.totalAmount?.toLocaleString()}
                         </span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          o.status === 'delivered'   ? 'bg-green-100 text-green-700'  :
-                          o.status === 'in-transit'  ? 'bg-purple-100 text-purple-700':
-                          o.status === 'confirmed'   ? 'bg-blue-100 text-blue-700'   :
-                          o.status === 'cancelled'   ? 'bg-red-100 text-red-700'     :
-                          'bg-amber-100 text-amber-700'
-                        }`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${o.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                          o.status === 'in-transit' ? 'bg-purple-100 text-purple-700' :
+                            o.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
+                              o.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                'bg-amber-100 text-amber-700'
+                          }`}>
                           {o.status}
                         </span>
                       </div>

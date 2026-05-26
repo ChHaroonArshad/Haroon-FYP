@@ -3,284 +3,237 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   TrendingUp, Star, ChevronRight, Sparkles,
   Play, ArrowRight, ShoppingBag, Palette,
-  Users, Award, Heart, Loader, Eye, Package
+  Users, Award, Heart, Loader, Eye, Package, Shield, Wand2
 } from 'lucide-react';
-import BuyerSidebar   from './BuyerSidebar';
-import BuyerHeader    from './BuyerHeader';
+import BuyerSidebar from './BuyerSidebar';
+import BuyerHeader from './BuyerHeader';
 import { artworkAPI, orderAPI, wishlistAPI } from '../services/api';
 import { getImageUrl } from '../hooks/useUser';
 
 const CATEGORIES = [
-  { name: 'Landscapes',  icon: '🏔️', cat: 'Landscape'   },
-  { name: 'Abstract',    icon: '🎨', cat: 'Abstract'     },
-  { name: 'Portraits',   icon: '👤', cat: 'Portraits'    },
-  { name: 'Traditional', icon: '🕌', cat: 'Traditional'  },
-  { name: 'Modern',      icon: '✨', cat: 'Modern'       },
-  { name: 'Calligraphy', icon: '✍️', cat: 'Calligraphy'  },
+  { name: 'Landscapes', icon: '🏔️', cat: 'Landscape' },
+  { name: 'Abstract', icon: '🎨', cat: 'Abstract' },
+  { name: 'Portraits', icon: '👤', cat: 'Portraits' },
+  { name: 'Traditional', icon: '🕌', cat: 'Traditional' },
+  { name: 'Modern', icon: '✨', cat: 'Modern' },
+  { name: 'Calligraphy', icon: '✍️', cat: 'Calligraphy' },
 ];
 
 export default function BuyerHomePage() {
-  const navigate    = useNavigate();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [artworks,    setArtworks]    = useState([]);
-  const [orders,      setOrders]      = useState([]);
-  const [favorites,   setFavorites]   = useState([]);
-  const [togglingId,  setTogglingId]  = useState(null);
-  const [loading,     setLoading]     = useState(true);
-
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [artworks, setArtworks] = useState([]);
+  const [recommended, setRecommended] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [favorites, setFavorites] = useState([]);
+  const [togglingId, setTogglingId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAll = async () => {
+    const fetchHomeData = async () => {
       setLoading(true);
       try {
-        const [artData, wishData] = await Promise.all([
-          artworkAPI.getAll({ limit: 6, sortBy: 'popular', showSold: false }),
-          wishlistAPI.get().catch(() => ({ wishlist: [] })),
+        const [artRes, ordRes, wishRes] = await Promise.all([
+          artworkAPI.getAll({ limit: 8, isApproved: true }),
+          orderAPI.getMyOrders(),
+          wishlistAPI.get()
         ]);
-        setArtworks(artData.artworks || []);
-        setFavorites((wishData.wishlist || []).map(a => (a._id || a).toString()));
 
-        const token = localStorage.getItem('token');
-        if (token) {
-          orderAPI.getMyOrders().then(d => setOrders(d.orders || [])).catch(() => {});
+        setArtworks(artRes.artworks || []);
+        setOrders((ordRes.orders || []).slice(0, 3));
+
+        const favs = (wishRes.wishlist || []);
+        setFavorites(favs.map(w => typeof w === 'object' ? w._id : w));
+
+        // --- ISSUE #24: Personalized Recommendations Logic ---
+        if (favs.length > 0) {
+          // Extract categories from wishlist items
+          const categories = favs.filter(w => typeof w === 'object').map(w => w.category);
+          // Find the most frequent category
+          if (categories.length > 0) {
+            const mostFrequentCat = categories.sort((a, b) =>
+              categories.filter(v => v === a).length - categories.filter(v => v === b).length
+            ).pop();
+
+            // Fetch artworks matching their favorite category
+            const recRes = await artworkAPI.getAll({ category: mostFrequentCat, limit: 4, isApproved: true });
+            // Exclude artworks they already wishlisted
+            const filteredRecs = (recRes.artworks || []).filter(a => !favs.some(f => (f._id || f) === a._id));
+            setRecommended(filteredRecs);
+          }
         }
       } catch (err) {
-        console.error(err);
+        console.error('Home load error:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchAll();
+    fetchHomeData();
   }, []);
 
   const toggleFavorite = async (id, e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (togglingId === id) return;
+    if (togglingId) return;
     setTogglingId(id);
     try {
-      const data = await wishlistAPI.toggle(id);
-      setFavorites((data.wishlist || []).map(a => (a._id || a).toString()));
-    } catch (err) {}
-    finally { setTogglingId(null); }
+      const res = await wishlistAPI.toggle(id);
+      if (res.isWishlisted) setFavorites(prev => [...prev, id]);
+      else setFavorites(prev => prev.filter(fId => fId !== id));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTogglingId(null);
+    }
   };
 
-  // Real stats
-  const heroStats = [
-    { icon: ShoppingBag, num: orders.length,                                    label: 'Orders'    },
-    { icon: Heart,       num: favorites.length,                                  label: 'Favorites' },
-    { icon: Package,     num: orders.filter(o => o.status === 'delivered').length, label: 'Delivered' },
-    { icon: Award,       num: artworks.length > 0
-        ? (artworks.filter(a => a.rating > 0).reduce((s, a) => s + a.rating, 0) /
-           Math.max(1, artworks.filter(a => a.rating > 0).length)).toFixed(1)
-        : '—',
-      label: 'Avg Rating',
-    },
-  ];
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex">
+      <BuyerSidebar open={false} onClose={() => { }} />
+      <div className="flex-1 lg:ml-64 flex items-center justify-center">
+        <Loader className="w-10 h-10 text-purple-600 animate-spin" />
+      </div>
+    </div>
+  );
+
+  const activeOrders = orders.filter(o => !['delivered', 'cancelled'].includes(o.status));
+
+  // Helper to render an artwork card (Used for Featured & Recommended)
+  const renderArtworkCard = (art) => {
+    const isSold = !art.isAvailable;
+    return (
+      <Link to={isSold ? '#' : `/buyer/artwork/${art._id}`} key={art._id}>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:shadow-xl hover:border-purple-200 transition-all">
+          <div className="h-48 sm:h-56 bg-gray-100 relative overflow-hidden">
+            <img
+              src={getImageUrl(art.image)}
+              alt={art.title}
+              className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${isSold ? 'opacity-50 grayscale' : ''}`}
+              onError={e => { e.target.style.display = 'none'; }}
+            />
+            {!isSold && (
+              <button
+                onClick={e => toggleFavorite(art._id, e)}
+                disabled={togglingId === art._id}
+                className="absolute top-3 right-3 w-9 h-9 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-sm hover:bg-white hover:scale-110 transition disabled:opacity-50"
+              >
+                <Heart className={`w-4 h-4 ${favorites.includes(art._id) ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
+              </button>
+            )}
+            {isSold && (
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                <span className="bg-red-500 text-white font-black text-sm px-4 py-1.5 rounded-lg tracking-widest shadow-lg">SOLD</span>
+              </div>
+            )}
+          </div>
+          <div className="p-4">
+            <div className="flex items-center gap-1 mb-1">
+              <h3 className="font-bold text-gray-900 text-sm truncate">{art.title}</h3>
+              {art.isAuthenticated && <Shield className="w-3.5 h-3.5 text-blue-500 fill-blue-500 flex-shrink-0" title="Verified Authentic" />}
+            </div>
+            <p className="text-xs text-gray-500 mb-3 truncate">by {art.artistName}</p>
+            <div className="flex items-center justify-between">
+              <span className={`font-black text-sm ${isSold ? 'text-gray-400 line-through' : 'text-purple-700'}`}>
+                PKR {art.price?.toLocaleString()}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-0.5 bg-yellow-50 px-1.5 py-0.5 rounded text-xs font-bold text-yellow-700">
+                  <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
+                  {art.rating > 0 ? art.rating.toFixed(1) : 'New'}
+                </div>
+                {art.sales > 0 && (
+                  <span className="text-xs text-gray-400">({art.sales})</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Link>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <BuyerSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
       <div className="flex-1 lg:ml-64 min-w-0">
         <BuyerHeader
           onMenuClick={() => setSidebarOpen(true)}
-          title="Home"
-          subtitle="Discover amazing artworks"
-          searchPlaceholder="Search artworks, artists..."
-          onSearchChange={e => {
-            if (e.target.value) navigate(`/buyer/search?q=${encodeURIComponent(e.target.value)}`);
-          }}
+          title="Discover"
+          subtitle="Find your next masterpiece"
         />
 
-        <main className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
+        <main className="p-4 md:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-8">
 
-          {/* Welcome Hero */}
-          <div className="bg-gradient-to-br from-purple-600 via-purple-700 to-blue-700 rounded-2xl p-6 md:p-8 text-white shadow-xl shadow-purple-200/50 relative overflow-hidden">
-            <div className="absolute inset-0 opacity-10"
-              style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '30px 30px' }}
-            />
-            <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div className="flex-1">
-                <h1 className="text-2xl md:text-3xl font-black mb-1 text-white">
-                  Welcome back, {user.fullName?.split(' ')[0] || 'Explorer'}! 👋
-                </h1>
-                <p className="text-purple-200 mb-5 text-sm">
-                  Discover amazing artworks from talented Pakistani artists
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <Link to="/buyer/browse">
-                    <button className="bg-white text-purple-700 px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-purple-50 transition flex items-center gap-2 shadow-lg">
-                      <Sparkles className="w-4 h-4" /> Browse Artworks
-                    </button>
-                  </Link>
-                  <Link to="/buyer/orders">
-                    <button className="bg-white/20 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-white/30 transition border border-white/30">
-                      My Orders
-                    </button>
-                  </Link>
+          {/* Active Orders Banner */}
+          {activeOrders.length > 0 && (
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-5 sm:p-6 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 backdrop-blur-sm">
+                  <Package className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">You have {activeOrders.length} active order(s)</h3>
+                  <p className="text-blue-100 text-sm">Track your recent purchases in real-time.</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 flex-shrink-0 w-full md:w-auto">
-                {loading ? (
-                  <div className="col-span-2 flex items-center justify-center py-4">
-                    <Loader className="w-6 h-6 text-white animate-spin" />
-                  </div>
-                ) : heroStats.map((s, i) => (
-                  <div key={i} className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-3 text-center border border-white/20">
-                    <p className="text-xl font-black text-white">{s.num}</p>
-                    <p className="text-purple-200 text-xs mt-0.5">{s.label}</p>
-                  </div>
-                ))}
-              </div>
+              <Link to="/buyer/orders">
+                <button className="bg-white text-blue-700 px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-50 transition w-full sm:w-auto shadow-sm">
+                  Track Orders
+                </button>
+              </Link>
             </div>
-          </div>
+          )}
 
           {/* Categories */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold text-gray-900">Browse by Category</h2>
-              <Link to="/buyer/browse" className="text-purple-600 text-sm font-bold flex items-center gap-1 hover:gap-2 transition-all">
-                See all <ChevronRight className="w-4 h-4" />
-              </Link>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Categories</h2>
             </div>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-              {CATEGORIES.map((cat, i) => (
-                <Link to={`/buyer/browse`} key={i}>
-                  <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm hover:shadow-md transition text-center group cursor-pointer border border-gray-100 hover:border-purple-200 hover:-translate-y-1">
-                    <div className="text-2xl mb-1.5 group-hover:scale-110 transition-transform duration-200">
-                      {cat.icon}
-                    </div>
-                    <h3 className="font-bold text-gray-900 text-xs mb-0.5 truncate">{cat.name}</h3>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4">
+              {CATEGORIES.map(c => (
+                <Link to={`/buyer/browse?category=${c.cat}`} key={c.name}>
+                  <div className="bg-white rounded-2xl p-4 text-center border border-gray-100 hover:border-purple-300 hover:shadow-md transition group cursor-pointer h-full flex flex-col justify-center">
+                    <span className="text-2xl sm:text-3xl mb-2 block group-hover:scale-110 transition-transform">{c.icon}</span>
+                    <span className="text-xs sm:text-sm font-semibold text-gray-700">{c.name}</span>
                   </div>
                 </Link>
               ))}
             </div>
           </div>
 
-          {/* Live Sessions placeholder */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <h2 className="text-lg font-bold text-gray-900">Live Sessions</h2>
+          {/* ISSUE #24: Recommended For You Section */}
+          {recommended.length > 0 && (
+            <div className="bg-purple-50/50 p-6 rounded-3xl border border-purple-100">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-purple-900 flex items-center gap-2">
+                  <Wand2 className="w-5 h-5 text-purple-600" /> Recommended For You
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+                {recommended.map(renderArtworkCard)}
               </div>
             </div>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {[
-                { title: 'Watercolor Landscape', artist: 'Ayesha Khan',  viewers: 234, live: true,  initials: 'AK', from: 'from-purple-500', to: 'to-pink-500' },
-                { title: 'Abstract Techniques',  artist: 'Hassan Ali',   viewers: 189, live: false, initials: 'HA', from: 'from-blue-500',   to: 'to-indigo-500' },
-              ].map((s, i) => (
-                <div key={i} className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${s.from} ${s.to} p-4 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all`}>
-                  {s.live && (
-                    <span className="absolute top-3 right-3 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> LIVE
-                    </span>
-                  )}
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-white/30 flex items-center justify-center text-white font-black text-lg flex-shrink-0 border-2 border-white/50">
-                      {s.initials}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-white text-sm truncate">{s.title}</h3>
-                      <p className="text-white/80 text-xs">by {s.artist}</p>
-                      <p className="text-white/70 text-xs mt-0.5">{s.viewers} watching</p>
-                    </div>
-                    <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                      <Play className="w-4 h-4 text-white fill-white" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
 
-          {/* Trending Artworks — REAL DATA */}
+          {/* Featured Artworks */}
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-purple-600" /> Trending Artworks
+                <Sparkles className="w-5 h-5 text-purple-500" /> Featured Artworks
               </h2>
-              <Link to="/buyer/browse" className="text-purple-600 text-sm font-bold flex items-center gap-1 hover:gap-2 transition-all">
-                View All <ChevronRight className="w-4 h-4" />
+              <Link to="/buyer/browse" className="text-sm font-semibold text-purple-600 hover:text-purple-700 flex items-center gap-1">
+                View All <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
 
-            {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
-                    <div className="aspect-square bg-gray-200" />
-                    <div className="p-3 space-y-2">
-                      <div className="h-3 bg-gray-200 rounded w-3/4" />
-                      <div className="h-2.5 bg-gray-200 rounded w-1/2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : artworks.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
+            {artworks.length === 0 ? (
+              <div className="bg-white rounded-2xl p-8 text-center border border-gray-100">
                 <Palette className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 font-semibold">No artworks yet</p>
-                <p className="text-gray-400 text-sm mt-1">Check back soon!</p>
+                <p className="text-gray-500 font-medium">No artworks available yet.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {artworks.map(art => {
-                  const isFav = favorites.includes(art._id?.toString());
-                  return (
-                    <Link to={`/buyer/artwork/${art._id}`} key={art._id}>
-                      <div className="bg-white rounded-2xl shadow-sm overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-100">
-                        <div className="relative aspect-square overflow-hidden bg-gray-100">
-                          <img
-                            src={getImageUrl(art.image)}
-                            alt={art.title}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                            loading="lazy"
-                            onError={e => { e.target.style.display = 'none'; }}
-                          />
-                          {art.isFeatured && (
-                            <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-400 text-amber-900 text-xs font-bold rounded-lg flex items-center gap-1 z-10">
-                              <Sparkles className="w-3 h-3" /> Featured
-                            </span>
-                          )}
-                          <button
-                            onClick={e => toggleFavorite(art._id, e)}
-                            disabled={togglingId === art._id}
-                            className="absolute top-2 right-2 w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-all z-10 hover:scale-110 disabled:opacity-50"
-                          >
-                            {togglingId === art._id
-                              ? <Loader className="w-4 h-4 text-purple-500 animate-spin" />
-                              : <Heart className={`w-4 h-4 ${isFav ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
-                            }
-                          </button>
-                          <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-purple-600 text-white text-xs font-medium rounded-lg z-10">
-                            {art.category}
-                          </span>
-                        </div>
-                        <div className="p-3">
-                          <h3 className="font-bold text-gray-900 text-sm mb-0.5 truncate">{art.title}</h3>
-                          <p className="text-gray-500 text-xs mb-2">by {art.artistName}</p>
-                          <div className="flex items-center justify-between">
-                            <span className="text-purple-600 font-black text-sm">
-                              PKR {art.price?.toLocaleString()}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                              <span className="text-xs font-bold text-gray-700">
-                                {art.rating > 0 ? art.rating.toFixed(1) : 'New'}
-                              </span>
-                              {art.sales > 0 && (
-                                <span className="text-xs text-gray-400">({art.sales})</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+                {artworks.map(renderArtworkCard)}
               </div>
             )}
           </div>

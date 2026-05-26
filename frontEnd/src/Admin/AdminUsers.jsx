@@ -1,235 +1,221 @@
 import React, { useState, useEffect } from 'react';
 import AdminSidebar from './AdminSidebar';
-import AdminHeader  from './AdminHeader';
+import AdminHeader from './AdminHeader';
 import {
   Search, CheckCircle, XCircle, Trash2,
   Users, UserCheck, UserX, Shield,
-  MoreVertical, Loader, AlertCircle
+  MoreVertical, Loader, AlertCircle, Ban
 } from 'lucide-react';
 import { adminAPI } from '../services/api';
 
 const ROLE_STYLE = {
   artist: 'bg-purple-100 text-purple-700',
-  buyer:  'bg-blue-100 text-blue-700',
-  admin:  'bg-red-100 text-red-700',
+  buyer: 'bg-blue-100 text-blue-700',
+  admin: 'bg-red-100 text-red-700',
 };
 
 export default function AdminUsers() {
-  const [sidebarOpen,   setSidebarOpen]   = useState(false);
-  const [users,         setUsers]         = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [error,         setError]         = useState('');
-  const [search,        setSearch]        = useState('');
-  const [filterRole,    setFilterRole]    = useState('all');
-  const [openMenu,      setOpenMenu]      = useState(null);
-  const [deletingId,    setDeletingId]    = useState(null);
-  const [total,         setTotal]         = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [filterRole, setFilterRole] = useState('all');
+  const [deletingId, setDeletingId] = useState(null);
+  const [suspendingId, setSuspendingId] = useState(null);
+  const [total, setTotal] = useState(0);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
 
   const fetchUsers = async () => {
     setLoading(true);
     setError('');
     try {
       const params = {};
-      if (search)               params.search = search;
-      if (filterRole !== 'all') params.role   = filterRole;
-      const data = await adminAPI.getUsers(params);
-      setUsers(data.users || []);
-      setTotal(data.total || 0);
+      if (filterRole !== 'all') params.role = filterRole;
+      if (search) params.search = search;
+      // Fetch 500 to handle client-side pagination smoothly
+      params.limit = 500;
+
+      const res = await adminAPI.getUsers(params);
+      setUsers(res.users || []);
+      setTotal(res.total || 0);
+      setCurrentPage(1); // Reset to page 1 on new search/filter
     } catch (err) {
-      setError('Failed to load users: ' + err.message);
+      setError('Failed to fetch users');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const timer = setTimeout(fetchUsers, 300);
-    return () => clearTimeout(timer);
+    const delayDebounce = setTimeout(() => {
+      fetchUsers();
+    }, 400);
+    return () => clearTimeout(delayDebounce);
   }, [search, filterRole]);
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this user? This cannot be undone.')) return;
+    if (!window.confirm('Delete this user? All their artworks and orders will also be deleted. This is irreversible.')) return;
     setDeletingId(id);
     try {
       await adminAPI.deleteUser(id);
       setUsers(prev => prev.filter(u => u._id !== id));
-      setOpenMenu(null);
+      setTotal(prev => prev - 1);
     } catch (err) {
-      alert('Failed to delete: ' + err.message);
+      alert(err.message || 'Failed to delete user');
     } finally {
       setDeletingId(null);
     }
   };
 
-  const formatDate = (d) =>
-    new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
+  const handleSuspendToggle = async (id, isCurrentlySuspended) => {
+    const actionStr = isCurrentlySuspended ? 'unsuspend' : 'suspend';
+    if (!window.confirm(`Are you sure you want to ${actionStr} this user?`)) return;
+    setSuspendingId(id);
+    try {
+      // Mocking the status update since we don't have the specific backend route yet
+      // In a real scenario: await adminAPI.updateUserStatus(id, { isSuspended: !isCurrentlySuspended });
+      setTimeout(() => {
+        setUsers(prev => prev.map(u => u._id === id ? { ...u, isSuspended: !isCurrentlySuspended } : u));
+        setSuspendingId(null);
+      }, 600);
+    } catch (err) {
+      alert(`Failed to ${actionStr} user`);
+      setSuspendingId(null);
+    }
+  };
 
-  const statCards = [
-    { label: 'Total',     value: users.length,                              icon: Users,      color: 'text-blue-600 bg-blue-50'   },
-    { label: 'Artists',   value: users.filter(u => u.role === 'artist').length, icon: UserCheck, color: 'text-purple-600 bg-purple-50'},
-    { label: 'Buyers',    value: users.filter(u => u.role === 'buyer').length,  icon: Shield,    color: 'text-green-600 bg-green-50' },
-    { label: 'Admins',    value: users.filter(u => u.role === 'admin').length,  icon: UserX,     color: 'text-red-600 bg-red-50'     },
-  ];
+  const formatDate = (d) => new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  // Pagination Logic
+  const totalPages = Math.ceil(users.length / itemsPerPage);
+  const currentUsers = users.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 lg:ml-64 min-w-0">
-        <AdminHeader
-          onMenuClick={() => setSidebarOpen(true)}
-          title="Manage Users"
-          subtitle={`${total} total users — real data`}
-        />
-        <main className="p-4 md:p-6 space-y-5">
+        <AdminHeader onMenuClick={() => setSidebarOpen(true)} title="Users Management" subtitle={`Managing ${total} active accounts`} />
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {statCards.map(s => (
-              <div key={s.label} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3 shadow-sm">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.color}`}>
-                  <s.icon size={18} />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-gray-900">{s.value}</p>
-                  <p className="text-xs text-gray-500">{s.label}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+        <main className="p-4 md:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-6">
 
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2.5 gap-2 shadow-sm">
-              <Search size={15} className="text-gray-400 flex-shrink-0" />
+          <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+            <div className="relative w-full sm:max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
-                className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400 min-w-0"
-                placeholder="Search by name or email..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
+                type="text" placeholder="Search by name or email..." value={search} onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500 transition"
               />
             </div>
-            <select
-              value={filterRole}
-              onChange={e => setFilterRole(e.target.value)}
-              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none text-gray-700 bg-white shadow-sm"
-            >
+            <div className="flex gap-2 w-full sm:w-auto">
               {['all', 'buyer', 'artist', 'admin'].map(r => (
-                <option key={r} value={r}>{r === 'all' ? 'All Roles' : r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                <button
+                  key={r} onClick={() => setFilterRole(r)}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition flex-1 sm:flex-none ${filterRole === r ? 'bg-red-500 text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}
+                >
+                  {r}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
-          {/* Loading */}
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader className="w-8 h-8 text-red-500 animate-spin" />
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" /> <span className="font-semibold text-sm">{error}</span>
             </div>
-          ) : error ? (
-            <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
-              <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-2" />
-              <p className="text-gray-700 font-semibold">{error}</p>
+          )}
+
+          {loading ? (
+            <div className="py-20 flex justify-center"><Loader className="w-10 h-10 text-red-500 animate-spin" /></div>
+          ) : users.length === 0 ? (
+            <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
+              <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-900 mb-1">No users found</h3>
+              <p className="text-gray-500">Try adjusting your search or filters</p>
             </div>
           ) : (
             <>
-              {/* Desktop Table */}
-              <div className="hidden md:block bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-gray-100 bg-gray-50/50">
-                    <tr>
-                      {['User', 'Role', 'Phone', 'City', 'Joined', 'Actions'].map(h => (
-                        <th key={h} className="text-left px-5 py-3 text-xs text-gray-500 font-semibold">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {users.map(u => (
-                      <tr key={u._id} className="hover:bg-gray-50/50">
-                        <td className="px-5 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-gradient-to-br from-slate-500 to-slate-700 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                              {u.fullName?.charAt(0)?.toUpperCase() || 'U'}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-800">{u.fullName}</p>
-                              <p className="text-xs text-gray-400">{u.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-3">
-                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROLE_STYLE[u.role] || 'bg-gray-100 text-gray-600'}`}>
-                            {u.role}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3 text-gray-600 text-xs">{u.phone || '—'}</td>
-                        <td className="px-5 py-3 text-gray-600 text-xs">{u.city || '—'}</td>
-                        <td className="px-5 py-3 text-gray-500 text-xs">{formatDate(u.createdAt)}</td>
-                        <td className="px-5 py-3">
-                          <div className="relative">
-                            <button
-                              onClick={() => setOpenMenu(openMenu === u._id ? null : u._id)}
-                              className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
-                            >
-                              <MoreVertical size={16} />
-                            </button>
-                            {openMenu === u._id && (
-                              <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1 min-w-[140px]">
-                                {u.role !== 'admin' && (
-                                  <button
-                                    onClick={() => handleDelete(u._id)}
-                                    disabled={deletingId === u._id}
-                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
-                                  >
-                                    <Trash2 size={14} />
-                                    {deletingId === u._id ? 'Deleting...' : 'Delete'}
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {users.length === 0 && (
-                  <div className="text-center py-12 text-gray-400">No users found</div>
-                )}
-              </div>
-
-              {/* Mobile Cards */}
-              <div className="md:hidden space-y-3">
-                {users.map(u => (
-                  <div key={u._id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                    <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {currentUsers.map(u => (
+                  <div key={u._id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition relative group">
+                    {u.isSuspended && (
+                      <div className="absolute top-4 right-4 bg-red-100 text-red-600 text-[10px] font-black uppercase px-2 py-0.5 rounded flex items-center gap-1">
+                        <Ban className="w-3 h-3" /> Suspended
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-slate-500 to-slate-700 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg ${u.isSuspended ? 'bg-gray-400' : 'bg-gradient-to-br from-slate-700 to-slate-900'}`}>
                           {u.fullName?.charAt(0)?.toUpperCase() || 'U'}
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-800">{u.fullName}</p>
-                          <p className="text-xs text-gray-500">{u.email}</p>
+                          <p className={`font-bold ${u.isSuspended ? 'text-gray-400 line-through' : 'text-gray-900'} truncate max-w-[120px]`}>{u.fullName}</p>
+                          <p className="text-xs text-gray-500 truncate max-w-[120px]">{u.email}</p>
                         </div>
                       </div>
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${ROLE_STYLE[u.role] || ''}`}>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+                      <span className={`px-2.5 py-1 rounded-lg font-bold capitalize ${ROLE_STYLE[u.role] || ''}`}>
                         {u.role}
                       </span>
+                      <span>{formatDate(u.createdAt)}</span>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-gray-400">
-                      <span>{u.city || 'No city'}</span>
-                      <span>Joined {formatDate(u.createdAt)}</span>
-                    </div>
+
                     {u.role !== 'admin' && (
-                      <button
-                        onClick={() => handleDelete(u._id)}
-                        disabled={deletingId === u._id}
-                        className="mt-3 w-full py-2 bg-red-50 text-red-700 rounded-lg text-xs font-semibold hover:bg-red-100 transition disabled:opacity-50"
-                      >
-                        {deletingId === u._id ? 'Deleting...' : 'Delete User'}
-                      </button>
+                      <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-gray-100">
+                        <button
+                          onClick={() => handleSuspendToggle(u._id, u.isSuspended)}
+                          disabled={suspendingId === u._id}
+                          className={`w-full py-2 rounded-lg text-xs font-bold transition disabled:opacity-50 flex items-center justify-center gap-1 ${u.isSuspended ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-orange-50 text-orange-700 hover:bg-orange-100'}`}
+                        >
+                          {suspendingId === u._id ? <Loader size={14} className="animate-spin" /> : <Ban size={14} />}
+                          {u.isSuspended ? 'Unsuspend' : 'Suspend'}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(u._id)}
+                          disabled={deletingId === u._id}
+                          className="w-full py-2 bg-red-50 text-red-700 rounded-lg text-xs font-bold hover:bg-red-100 transition disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          {deletingId === u._id ? <Loader size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                          Delete
+                        </button>
+                      </div>
                     )}
                   </div>
                 ))}
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-8">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                    className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 disabled:opacity-50 transition"
+                  >
+                    Previous
+                  </button>
+                  <div className="flex items-center gap-1 px-2">
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button
+                        key={i} onClick={() => setCurrentPage(i + 1)}
+                        className={`w-8 h-8 rounded-lg text-sm font-bold transition ${currentPage === i + 1 ? 'bg-red-500 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                    className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 disabled:opacity-50 transition"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </>
           )}
         </main>
